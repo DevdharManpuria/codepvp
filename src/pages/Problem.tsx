@@ -3,13 +3,15 @@ import Editor from '@monaco-editor/react'
 import { editor } from 'monaco-editor'
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { socket } from '../utils/socket';
 import { useUser } from '../hooks/useUser';
 import { debounce } from 'lodash';
 import { OrbitProgress } from 'react-loading-indicators';
 import { markTeamSolved } from './Problemset';
 import { useMatchTimer } from '../hooks/useMatchTimer';
+import type { ProblemSet } from './Problemset';
+import type { gameRes } from './GameFinishPage';
 
 
 // interface ProblemData {
@@ -86,6 +88,7 @@ const Problem: React.FC = () => {
     const { roomId, teamId } = useParams<{ roomId: string, teamId: string }>();
 
     const [data, setData] = useState<ProblemData | null>(null);
+    const [passData, setPassData] = useState<gameRes | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const { user } = useUser();
@@ -101,6 +104,21 @@ const Problem: React.FC = () => {
 
     const { timeLeft, isMatchOver } = useMatchTimer(roomId);
     const hasAutoSubmitted = useRef(false);
+
+    const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
+      const docRef = doc(db, "RoomSet", roomId!);
+      const docSnap = await getDoc(docRef);
+      
+      const teamKey = teamId == "A" ? "teamA" : "teamB";
+
+      const currentScore = docSnap.data()?.[teamKey].score;
+      const pointsAwarded = 10 * passed;
+
+      await updateDoc(docRef, {
+        [`${teamKey}.score`]: currentScore + pointsAwarded,
+      });
+
+    }
 
     useEffect(() => {
         if (isMatchOver && !hasAutoSubmitted.current) {
@@ -215,6 +233,7 @@ const Problem: React.FC = () => {
         }
 
         let allPassed = true;
+        let countPassed = 0;
         results.forEach((res: any, idx: number) => {
           if (!res || !res.status) {
             console.log(`Testcase ${idx + 1}: ❌ Invalid response (null result)`);
@@ -224,16 +243,16 @@ const Problem: React.FC = () => {
 
           const stdout = res.stdout ? atob(res.stdout) : null;
           const stderr = res.stderr ? atob(res.stderr) : null;
-          const compileError = res.compile_output ? atob(res.compile_output) : null;
+          // const compileError = res.compile_output ? atob(res.compile_output) : null;
 
           const verdict = res.status?.description || "Unknown";
           const passed = res.status?.id === 3; // 3 = Accepted
 
 
-          let finalOutput = `\nTestcase ${idx + 1}:\nStatus: ${verdict}\n`;
-          if (stdout) finalOutput += `Output:\n${stdout}\n`;
-          if (stderr) finalOutput += `Error:\n${stderr}\n`;
-          if (compileError) finalOutput += `Compile Error:\n${compileError}\n`;
+          // let finalOutput = `\nTestcase ${idx + 1}:\nStatus: ${verdict}\n`;
+          // if (stdout) finalOutput += `Output:\n${stdout}\n`;
+          // if (stderr) finalOutput += `Error:\n${stderr}\n`;
+          // if (compileError) finalOutput += `Compile Error:\n${compileError}\n`;
 
           // tempRes[idx].output = stdout ?? "";
           // tempRes[idx].error = stderr ? true : false;
@@ -249,18 +268,18 @@ const Problem: React.FC = () => {
           };
 
           if (passed) {
-            finalOutput += "✅ Test Passed!\n";
+            countPassed += 1
           } else {
-            finalOutput += "❌ Test Failed!\n";
             allPassed = false;
           }
 
-          console.log(finalOutput);
         });
+        
+        markPoints(roomId!, teamId!, problemId!, countPassed)
 
         if (allPassed && socket && roomId && problemId && teamId) {
           socket.emit("markSolved", { roomId, teamId, problemId });
-          markTeamSolved(teamId, problemId, roomId)
+          markTeamSolved(teamId, problemId, roomId, passData!)
         }
       } catch (err: any) {
         console.error(err);
@@ -358,6 +377,18 @@ const Problem: React.FC = () => {
             console.error(err);
         }
     }
+
+    useEffect(() => {
+      const fetchData = async () => {
+        const docRef = doc(db, "RoomSet", roomId!);
+        const docSnap = await getDoc(docRef);
+  
+        setPassData(docSnap.data() as gameRes)
+        
+        }
+  
+      fetchData();
+    }, [roomId]);
 
   return (
     <div className="z-10 flex flex-col h-full w-full max-w-dvw

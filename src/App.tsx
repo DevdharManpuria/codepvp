@@ -8,6 +8,7 @@ import Problem from "./pages/Problem"
 import MultiPlayer from "./pages/MultiPlayer"
 import RoomPage from "./pages/RoomPage"
 import Problemset from "./pages/Problemset"
+import GameFinishPage from "./pages/GameFinishPage"
 import './App.css'
 import { UserProvider } from "./utils/userProvider"
 
@@ -26,6 +27,7 @@ function App() {
           <Route path="room/:roomId" element={<RoomPage />} />
           <Route path="room/:roomId/problemset/team/:teamId" element={<Problemset />} />
           <Route path="room/:roomId/problems/:problemId/team/:teamId" element={<Problem />} />
+          <Route path="room/:roomId/results" element={<GameFinishPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

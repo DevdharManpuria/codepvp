@@ -4,6 +4,11 @@ import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import { useNavigate } from 'react-router-dom';
+import { getDocs, getDoc, collection, query, where, limit, setDoc, doc, updateDoc } from "firebase/firestore";
+import { db } from '../../firebaseConfig';
+import type { gameRes } from './GameFinishPage';
+
+
 
 type PlayerSlotProps = {
     player: string | null;
@@ -76,8 +81,48 @@ const RoomPage: React.FC = () => {
 
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    await populateFirebase();
     socket.emit("startGame", { roomId })
+  }
+
+  const populateFirebase = async () => {
+    // First four easy q (Temporary)
+    const q = query(
+      collection(db, "ProblemsWithHTC"),
+      where("difficulty", "==", "Easy"),
+      limit(4)
+    );
+    const querySnapshot = await getDocs(q);
+    const docs = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    console.log(docs);
+    await setDoc(doc(db, "RoomSet", roomId!), {
+      winningTeam: "None",
+      teamA: {
+        name: "Team A",
+        score: 0,
+        players: teamA.map((player) => ({
+          pid: player,
+          problemSolved: 0,
+          points: 0,
+        })),
+        solvedProblems: [],
+      },
+      teamB: {
+        name: "Team B",
+        score: 0,
+        players: teamB.map((player) => ({
+          pid: player,
+          problemSolved: 0,
+          points: 0,
+        })),
+        solvedProblems: [],
+      },
+      allProblems: docs
+    });
   }
 
   return (

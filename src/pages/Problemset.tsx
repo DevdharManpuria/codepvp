@@ -4,31 +4,35 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { socket } from "../utils/socket";
 import { useMatchTimer } from '../hooks/useMatchTimer';
+import type { gameRes } from "./GameFinishPage";
 
-interface ProblemSet {
+export interface ProblemSet {
   title: string,
   id: string,
   statusA: boolean,
   statusB: boolean,
+  pointsA: number,
+  pointsB: number,
 }
 
-export const markTeamSolved = async (teamId: string, problemId: string, roomId: string) => {
+export const markTeamSolved = async (teamId: string, problemId: string, roomId: string, data: gameRes) => {
 
-    const docRef = doc(db, "problemSet", roomId!);
+    const docRef = doc(db, "RoomSet", roomId!);
     const docSnap = await getDoc(docRef);
 
-    const problemArray = docSnap.data()?.problems;
+    const problemArray = docSnap.data()?.allProblems || [];
 
-    const problemIdx = problemArray.findIndex((problem: ProblemSet) => problem.id === problemId)
-    console.log(problemIdx)
+    const problem = problemArray.find((p: any) => p.id === problemId);
+    const teamKey = teamId === "A" ? "teamA" : "teamB";
 
-    if(teamId == "A") {
-      problemArray[problemIdx].statusA = true;
-    } else {
-      problemArray[problemIdx].statusB = true;
+    const solvedProblems = data?.[teamKey]?.solvedProblems || [];
+
+    if (!solvedProblems.includes(problem.title)) {
+      solvedProblems.push(problem.title);
     }
+
     await updateDoc(docRef, {
-      problems: problemArray 
+      [`${teamKey}.solvedProblems`]: solvedProblems,
     });
   }
 
@@ -50,7 +54,7 @@ const StatusIcon: React.FC<{ solved: boolean }> = ({ solved }) => {
 };
 
 export default function Problemset() {
-  const [data, setData] = useState<ProblemSet[] | null>(null);
+  const [data, setData] = useState<gameRes | null>(null);
   const [teamAFinished, setTeamAFinished] = useState(false);
   const [teamBFinished, setTeamBFinished] = useState(false);
 
@@ -61,37 +65,20 @@ export default function Problemset() {
   const { timeLeft, isMatchOver } = useMatchTimer(roomId);
 
   useEffect(() => {
+      if (isMatchOver) {
+          console.log("Match ended. Auto-submitting code...");
+          navigate(`/room/${roomId}/results`)
+      }
+  }, [isMatchOver]);
+
+  useEffect(() => {
     const fetchData = async () => {
-      const docRef = doc(db, "problemSet", roomId!);
+      const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const docs = docSnap.data().problems as ProblemSet[];
-        setData(docs);
-      } else {
-        // First four easy q (Temporary)
-        const q = query(
-          collection(db, "ProblemsWithHTC"),
-          where("difficulty", "==", "Easy"),
-          limit(4)
-        );
-        const querySnapshot = await getDocs(q);
-        const docs = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as ProblemSet[];
-        console.log(docs);
-        setData(docs);
-        await setDoc(doc(db, "problemSet", roomId!), {
-          problems: docs.map((doc) => ({
-            id: doc.id,
-            title: doc.title,
-            statusA: false,
-            statusB: false,
-          })),
-        });
+      setData(docSnap.data() as gameRes)
+      
       }
-    };
 
     fetchData();
   }, [roomId]);
@@ -140,7 +127,7 @@ export default function Problemset() {
 
 useEffect(() => {
     const handleSolvedProblem = ({ problemId, teamId }: { problemId: string, teamId: string }) => {
-      markTeamSolved(teamId, problemId, roomId!);
+      markTeamSolved(teamId, problemId, roomId!, data!);
     };
     
     const handleTeamFinished = ({ teamId }: { teamId: string }) => {
@@ -162,10 +149,14 @@ useEffect(() => {
 
   const allProblemsSolved = useMemo(() => {
     if (!data || !teamId) return false;
-    return data.every((problem) =>
-      teamId === "A" ? problem.statusA : problem.statusB
+
+    const solvedSet = new Set(
+      teamId === "A" ? data.teamA.solvedProblems : data.teamB.solvedProblems
     );
-  }, [data, teamId]);
+
+    return data.allProblems.every((problem: any) => solvedSet.has(problem.title));
+  }, [data, teamId, data?.teamA?.solvedProblems, data?.teamB?.solvedProblems]);
+
 
   const handleFinishGame = () => {
     if (allProblemsSolved) {
@@ -201,7 +192,7 @@ useEffect(() => {
 
         {/* Problem List */}
         <div className="w-full flex flex-col gap-4">
-          {data?.map((problem, index) => (
+          {data?.allProblems.map((problem: any, index) => (
             <div
               key={index}
               className="flex justify-between items-center p-4 bg-gray-900/40 border border-gray-700/50 rounded-lg
@@ -215,7 +206,11 @@ useEffect(() => {
               </div>
               <div className="flex items-center gap-6">
                 <StatusIcon
-                  solved={teamId === "A" ? problem.statusA : problem.statusB}
+                  solved={
+                    teamId === "A"
+                      ? data.teamA.solvedProblems.includes(problem.title)
+                      : data.teamB.solvedProblems.includes(problem.title)
+                  }
                 />
                 <button
                   onClick={() => {

@@ -96,7 +96,7 @@ io.on("connection", (socket) => {
     if(!room || room.status === 'in-progress') return;
 
     room.status = 'in-progress';
-    room.duration = 1800; // 30 minutes in seconds
+    room.duration = 120; // 30 minutes in seconds
     room.startTime = Date.now();
     room.endTime = room.startTime + (room.duration * 1000);
 
