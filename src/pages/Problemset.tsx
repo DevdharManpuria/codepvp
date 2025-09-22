@@ -6,15 +6,6 @@ import { socket } from "../utils/socket";
 import { useMatchTimer } from '../hooks/useMatchTimer';
 import type { gameRes } from "./GameFinishPage";
 
-export interface ProblemSet {
-  title: string,
-  id: string,
-  statusA: boolean,
-  statusB: boolean,
-  pointsA: number,
-  pointsB: number,
-}
-
 export const markTeamSolved = async (teamId: string, problemId: string, roomId: string, data: gameRes) => {
 
     const docRef = doc(db, "RoomSet", roomId!);
