@@ -108,15 +108,43 @@ const Problem: React.FC = () => {
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
+      const docData = docSnap.data();
       
       const teamKey = teamId == "A" ? "teamA" : "teamB";
+      const problemArray = docData?.allProblems || [];
+      const problem = problemArray.find((p: any) => p.id === problemId);
 
-      const currentScore = docSnap.data()?.[teamKey].score;
+      if (docData?.[teamKey].solvedProblems.includes(problem.title)) return ;
+
+      const currentScore = docData?.[teamKey].score;
       const pointsAwarded = 10 * passed;
 
       await updateDoc(docRef, {
         [`${teamKey}.score`]: currentScore + pointsAwarded,
       });
+
+      const players: {
+        pid: string;
+        points: number;
+        problemsSolved: number;
+      }[] = docData?.[teamKey].players || [];
+
+      const playerIndex = players.findIndex(
+        (p) => p.pid === currentUserName
+      );
+
+      if (playerIndex !== -1) {
+        const updatedPlayers = [...docData?.[teamKey].players];
+        updatedPlayers[playerIndex] = {
+          ...updatedPlayers[playerIndex],
+          points: updatedPlayers[playerIndex].points + pointsAwarded,
+          problemsSolved: updatedPlayers[playerIndex].problemsSolved + passed, // or just +1 if 1 problem solved
+        };
+
+        await updateDoc(docRef, {
+          [`${teamKey}.players`]: updatedPlayers,
+        });
+      }
 
     }
 

@@ -1,38 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../../firebaseConfig';
+import { useUser } from '../hooks/useUser';
+import type { ProblemData } from './Problem';
 
-// --- Mock Data for a Finished Game ---
-// In a real application, this data would come from your backend after the match ends.
-const gameResult = {
-  winningTeam: 'Team A',
-  currentUserTeam: 'Team A', // To determine if the player won or lost
-  teamA: {
-    name: 'Team A',
-    score: 250,
-    players: [
-      { id: 'challenger-a1b2c3d4', problemsSolved: 2, points: 150 },
-      { id: 'challenger-e5f6g7h8', problemsSolved: 1, points: 100 },
-    ],
-    solvedProblems: ['Two Sum', 'Container With Most Water'],
-  },
-  teamB: {
-    name: 'Team B',
-    score: 100,
-    players: [
-      { id: 'challenger-i9j0k1l2', problemsSolved: 1, points: 100 },
-      { id: 'challenger-m3n4o5p6', problemsSolved: 0, points: 0 },
-    ],
-    solvedProblems: ['Valid Palindrome'],
-  },
-  allProblems: ['Two Sum', 'Valid Palindrome', 'Merge Sorted Array', 'Container With Most Water'],
-};
-// --- End of Mock Data ---
 export interface gameRes {
     winningTeam: string;
     teamA: {
         name: string;
         score: number;
         players: {
-            id: string;
+            pid: string;
             problemsSolved: number;
             points: number;
         }[]
@@ -42,13 +21,13 @@ export interface gameRes {
         name: string;
         score: number;
         players: {
-            id: string;
+            pid: string;
             problemsSolved: number;
             points: number;
         }[]
         solvedProblems: string[];
     };
-    allProblems: string[];
+    allProblems: ProblemData[];
 }
 
 // --- Sub-components for better structure ---
@@ -68,7 +47,12 @@ const ResultBanner: React.FC<{ didWin: boolean }> = ({ didWin }) => {
   );
 };
 
-const TeamCard: React.FC<{ teamData: typeof gameResult.teamA, allProblems: string[] }> = ({ teamData, allProblems }) => {
+interface TeamCardProps {
+  teamData: gameRes["teamA"] | gameRes["teamB"];
+  allProblems: string[];
+}
+
+const TeamCard: React.FC<TeamCardProps> = ({ teamData, allProblems }) => {
   const teamColor = teamData.name === 'Team A' ? 'cyan' : 'purple';
 
   return (
@@ -82,11 +66,11 @@ const TeamCard: React.FC<{ teamData: typeof gameResult.teamA, allProblems: strin
       {/* Player Stats */}
       <div className="mb-4">
         {teamData.players.map(player => (
-          <div key={player.id} className="flex justify-between items-center bg-gray-800/50 p-2 rounded mb-2">
-            <span className="text-sm truncate text-gray-300 w-2/5">{player.id}</span>
+          <div key={player.pid} className="flex justify-between items-center bg-gray-800/50 p-2 rounded mb-2">
+            <span className="text-sm truncate text-gray-300 w-2/5">{player.pid}</span>
             <div className="text-right">
               <p className="font-bold text-white">{player.points} pts</p>
-              <p className="text-xs text-gray-400">{player.problemsSolved} solved</p>
+              {/* <p className="text-xs text-gray-400">{player.problemsSolved} solved</p> */}
             </div>
           </div>
         ))}
@@ -118,18 +102,45 @@ const TeamCard: React.FC<{ teamData: typeof gameResult.teamA, allProblems: strin
 // --- Main GameFinish Component ---
 
 const GameFinishPage: React.FC = () => {
-  const didUserWin = gameResult.winningTeam === gameResult.currentUserTeam;
   const [gameData, setGameData] = useState<gameRes | null>(null);
+  const [myTeam, setMyTeam] = useState<string | null>(null);
+
+  const { roomId } = useParams();
+
+  const { user } = useUser();
 
   useEffect(() => {
-    const fillData = async () => {
-        
+    const fetchData = async () => {
+      const docRef = doc(db, "RoomSet", roomId!);
+      const docSnap = await getDoc(docRef);
+      const data = docSnap.data() as gameRes;
+
+      const currentUserName = user?.displayName || user?.email || "Anon";
+
+      const winningTeam =
+      data.teamA.score > data.teamB.score
+        ? "Team A"
+        : data.teamB.score > data.teamA.score
+        ? "Team B"
+        : "Draw";
+
+      setGameData({ ...data, winningTeam });
+
+      const inTeamA = data?.teamA.players.some(p => p.pid === currentUserName);
+      const inTeamB = data?.teamB.players.some(p => p.pid === currentUserName);
+
+
+      if (inTeamA) setMyTeam("Team A");
+      else if (inTeamB) setMyTeam("Team B");
+      
     }
-  },[])
+
+    fetchData();
+  },[roomId, user])
 
 
   return (
-    <div className='flex justify-center items-center bg-gray-900' >
+    <div className='flex h-dvh justify-center items-center bg-gray-900' >
     <div className="z-10 flex flex-col p-8 max-w-5xl w-full
       bg-black/30 backdrop-blur-md 
       border border-cyan-400/20 rounded-xl
@@ -137,15 +148,17 @@ const GameFinishPage: React.FC = () => {
       
       {/* Header */}
       <div className="text-center mb-6">
-        <ResultBanner didWin={didUserWin} />
+        <ResultBanner didWin={gameData?.winningTeam === myTeam} />
         <p className="text-lg text-gray-300">The match has concluded.</p>
       </div>
 
       {/* Main Results Grid */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <TeamCard teamData={gameResult.teamA} allProblems={gameResult.allProblems} />
-        <TeamCard teamData={gameResult.teamB} allProblems={gameResult.allProblems} />
-      </div>
+      {gameData && (
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <TeamCard teamData={gameData?.teamA} allProblems={gameData?.allProblems.map(problem => problem.title)} />
+          <TeamCard teamData={gameData?.teamB} allProblems={gameData?.allProblems.map(problem => problem.title)} />
+        </div>
+      )}
 
       {/* Footer Navigation */}
       <button 
