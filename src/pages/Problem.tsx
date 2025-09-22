@@ -10,7 +10,6 @@ import { debounce } from 'lodash';
 import { OrbitProgress } from 'react-loading-indicators';
 import { markTeamSolved } from './Problemset';
 import { useMatchTimer } from '../hooks/useMatchTimer';
-import type { ProblemSet } from './Problemset';
 import type { gameRes } from './GameFinishPage';
 
 
@@ -307,7 +306,9 @@ const Problem: React.FC = () => {
 
         if (allPassed && socket && roomId && problemId && teamId) {
           socket.emit("markSolved", { roomId, teamId, problemId });
-          markTeamSolved(teamId, problemId, roomId, passData!)
+          if(passData) {
+            markTeamSolved(teamId, problemId, roomId, passData)
+          }
         }
       } catch (err: any) {
         console.error(err);
