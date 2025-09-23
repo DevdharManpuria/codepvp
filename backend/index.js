@@ -4,18 +4,18 @@ import { Server } from "socket.io";
 import { createClient } from 'redis';
 import 'dotenv/config';
 
-const client = createClient({
-    username: 'default',
-    password: process.env.REDIS_PASS,
-    socket: {
-        host: 'redis-18903.c8.us-east-1-2.ec2.redns.redis-cloud.com',
-        port: 18903
-    }
-});
+// const client = createClient({
+//     username: 'default',
+//     password: process.env.REDIS_PASS,
+//     socket: {
+//         host: 'redis-18903.c8.us-east-1-2.ec2.redns.redis-cloud.com',
+//         port: 18903
+//     }
+// });
 
-client.on('error', err => console.log('Redis Client Error', err));
+// client.on('error', err => console.log('Redis Client Error', err));
 
-await client.connect();
+// await client.connect();
 
 // await client.set('foo', 'bar');
 // const result = await client.get('foo');

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { useUser } from '../hooks/useUser';
@@ -109,6 +109,8 @@ const GameFinishPage: React.FC = () => {
 
   const { user } = useUser();
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     const fetchData = async () => {
       const docRef = doc(db, "RoomSet", roomId!);
@@ -162,7 +164,7 @@ const GameFinishPage: React.FC = () => {
 
       {/* Footer Navigation */}
       <button 
-        // onClick={() => onNavigate('mainmenu')}
+        onClick={() => navigate('/')}
         className="w-full max-w-sm mx-auto font-bold text-gray-900 bg-cyan-300 border-2 border-cyan-300 rounded-lg py-3 text-xl
         transition-all duration-300 transform hover:scale-105
         hover:bg-transparent hover:text-cyan-300
