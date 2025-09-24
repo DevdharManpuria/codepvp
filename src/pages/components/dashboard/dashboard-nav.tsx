@@ -1,4 +1,4 @@
-import { Home, Code, Trophy, GitBranch, Star, Bell, ChevronDown, Search } from "lucide-react"
+import { Code, Trophy, Bell, Search } from "lucide-react"
 import { Link } from "react-router-dom"
 
 export function DashboardNav() {
