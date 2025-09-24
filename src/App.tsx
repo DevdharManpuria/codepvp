@@ -9,7 +9,7 @@ import MultiPlayer from "./pages/MultiPlayer"
 import RoomPage from "./pages/RoomPage"
 import Problemset from "./pages/Problemset"
 import GameFinishPage from "./pages/GameFinishPage"
-import PageNotFound from "./pages/NotFound"
+import NotFound from "./pages/NotFound"
 import './App.css'
 import { UserProvider } from "./utils/userProvider"
 
@@ -21,7 +21,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="404" element={<PageNotFound />} />
+          <Route path="404" element={<NotFound />} />
           <Route path="login" element={<Login />} />
           <Route path="signup" element={<Signup />} />
           <Route path="SinglePlayer" element={<SinglePlayer />} />
