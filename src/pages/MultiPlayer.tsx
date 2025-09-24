@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../hooks/useUser';
 
 const MultiPlayer: React.FC = () => {
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [code, setCode] = useState();
 
   const navigate = useNavigate();
+
+  const { user } = useUser()
+  
+  useEffect(() => {
+      if(!user) navigate("/login");
+  })
 
   const handleCreateRoom = () => {
     const roomId = Math.floor(Math.random() * 100000) + 100000;

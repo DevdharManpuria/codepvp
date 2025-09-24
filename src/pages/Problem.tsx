@@ -411,6 +411,28 @@ const Problem: React.FC = () => {
       const fetchData = async () => {
         const docRef = doc(db, "RoomSet", roomId!);
         const docSnap = await getDoc(docRef);
+
+        // Redirects to 404 if room not created earlier
+        if(!docSnap.exists()) navigate("/404");
+
+        const teamKey = teamId == "A" ? "teamA" : "teamB";
+
+        const players: {
+          pid: string;
+          points: number;
+          problemsSolved: number;
+        }[] = docSnap.data()?.[teamKey].players || [];
+
+        let pIdx = -1
+
+        pIdx = players.findIndex(
+          (p) => p.pid === currentUserName
+        );
+
+        console.log(pIdx)
+        console.log(currentUserName)
+
+        if (pIdx == -1) navigate("/404");
   
         setPassData(docSnap.data() as gameRes)
         
