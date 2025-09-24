@@ -25,7 +25,6 @@ export function ActivityHeatmap() {
 
     
       const currentDate = new Date()
-      const currentMonth = currentDate.getMonth() // 0-based (September = 8)
       const currentDay = currentDate.getDate()
 
       const daysToShow = monthIndex === 8 ? Math.min(currentDay, month.days) : month.days
