@@ -425,6 +425,10 @@ const Problem: React.FC = () => {
     }
 
     useEffect(() => {
+
+      if (!user) return;
+      if (!roomId) return;
+
       const fetchData = async () => {
         const docRef = doc(db, "RoomSet", roomId!);
         const docSnap = await getDoc(docRef);

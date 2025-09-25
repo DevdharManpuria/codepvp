@@ -69,6 +69,8 @@ export default function Problemset() {
   }, [isMatchOver]);
 
   useEffect(() => {
+    if (!user || !roomId || !teamId) return;
+    
     const fetchData = async () => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
@@ -100,7 +102,7 @@ export default function Problemset() {
       }
 
     fetchData();
-  }, [roomId]);
+  }, [roomId, user, teamId, navigate]);
 
   useEffect(() => {
     socket.emit("joinProblemset", { roomId, teamId });
