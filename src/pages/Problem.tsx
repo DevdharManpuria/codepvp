@@ -81,6 +81,18 @@ interface TestCases {
   errorMessage: string;
 }
 
+const languageIdMap = {
+  python: 71,
+  cpp: 12,
+  java: 25,
+  javascript: 26,
+  typescript: 45,
+  go: 22,
+  rust: 41
+} as const;
+
+type Language = keyof typeof languageIdMap;
+
 const Problem: React.FC = () => {
 
     const { problemId } = useParams<{ problemId: string }>();
@@ -89,6 +101,7 @@ const Problem: React.FC = () => {
     const [data, setData] = useState<ProblemData | null>(null);
     const [passData, setPassData] = useState<gameRes | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [language, setLanguage] = useState<Language>("python");
 
     const { user } = useUser();
     const currentUserName = user?.displayName || user?.email || "Anon";
@@ -103,6 +116,10 @@ const Problem: React.FC = () => {
 
     const { timeLeft, isMatchOver } = useMatchTimer(roomId);
     const hasAutoSubmitted = useRef(false);
+
+    const handleLangChange = (event: any) => {
+      setLanguage(event.target.value)
+    }
 
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
@@ -337,7 +354,7 @@ const Problem: React.FC = () => {
           submissions.push(
             {
               source_code: normalizedCode,
-              language_id: 71,
+              language_id: languageIdMap[language],
               stdin: tc.input,
               expected_output: tc.output,
             }
@@ -359,7 +376,7 @@ const Problem: React.FC = () => {
           submissions.push(
             {
               source_code: normalizedCode,
-              language_id: 71,
+              language_id: languageIdMap[language],
               stdin: tc.input,
               expected_output: tc.output,
             }
@@ -513,12 +530,21 @@ const Problem: React.FC = () => {
         </div>
 
         {/* Right Side: Code Editor and Actions */}
-        <div className="w-1/2 flex flex-col border-l border-gray-700/50">
+        <div className="w-1/2 flex flex-col justify-between border-l border-gray-700/50">
           {/* This is now just a placeholder for the editor */}
-          <div className="h-4/6 bg-gray-900/50 p-4">
+          <div className="h-4/6 bg-gray-900/50 p-2">
+          <select className='bg-black hover:brightness-150 transition-normal duration-1000 text-purple-300 p-1 rounded-sm mb-1'  value={language} onChange={handleLangChange} >
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="go">Golang</option>
+            <option value="rust">Rust</option>
+          </select>
             <Editor 
                 theme="vs-dark" 
-                defaultLanguage='python' 
+                language={language} 
                 value={code} 
                 options={{
                     minimap: { enabled: false },
