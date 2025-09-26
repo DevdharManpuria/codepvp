@@ -13,7 +13,7 @@ const MultiPlayer: React.FC = () => {
     
   useEffect(() => {
       if(!user && !loading) navigate("/login");
-  }, [])
+  })
 
   const handleCreateRoom = () => {
     const roomId = Math.floor(Math.random() * 100000) + 100000;
