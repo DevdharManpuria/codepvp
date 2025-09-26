@@ -56,9 +56,13 @@ export default function Problemset() {
 
   const { timeLeft, isMatchOver } = useMatchTimer(roomId);
 
-  const { user } = useUser();
+  const { user, loading } = useUser();
 
   const currentUserName = user?.displayName || user?.email || "Anon";
+
+  useEffect(() => {
+    if(!user && !loading) navigate("/login");
+  })
 
 
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function Problemset() {
   }, [isMatchOver]);
 
   useEffect(() => {
-    if (!user || !roomId || !teamId) return;
+    if (!roomId || !teamId) return;
     
     const fetchData = async () => {
       const docRef = doc(db, "RoomSet", roomId!);
@@ -81,15 +85,18 @@ export default function Problemset() {
       const teamKey = teamId == "A" ? "teamA" : "teamB";
 
         const players: {
-          pid: string;
-          points: number;
-          problemsSolved: number;
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
         }[] = docSnap.data()?.[teamKey].players || [];
 
         let pIdx = -1
 
         pIdx = players.findIndex(
-          (p) => p.pid === currentUserName
+          (p) => p.pid.pid === currentUserName
         );
 
         console.log(pIdx)
@@ -102,7 +109,7 @@ export default function Problemset() {
       }
 
     fetchData();
-  }, [roomId, user, teamId, navigate]);
+  }, [roomId, teamId, navigate]);
 
   useEffect(() => {
     socket.emit("joinProblemset", { roomId, teamId });

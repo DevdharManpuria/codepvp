@@ -140,13 +140,16 @@ const Problem: React.FC = () => {
       });
 
       const players: {
-        pid: string;
-        points: number;
-        problemsSolved: number;
-      }[] = docData?.[teamKey].players || [];
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
+        }[] = docSnap.data()?.[teamKey].players || [];
 
       const playerIndex = players.findIndex(
-        (p) => p.pid === currentUserName
+        (p) => p.pid.pid === currentUserName
       );
 
       if (playerIndex !== -1) {
@@ -439,15 +442,18 @@ const Problem: React.FC = () => {
         const teamKey = teamId == "A" ? "teamA" : "teamB";
 
         const players: {
-          pid: string;
-          points: number;
-          problemsSolved: number;
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
         }[] = docSnap.data()?.[teamKey].players || [];
 
         let pIdx = -1
 
         pIdx = players.findIndex(
-          (p) => p.pid === currentUserName
+          (p) => p.pid.pid === currentUserName
         );
 
         console.log(pIdx)

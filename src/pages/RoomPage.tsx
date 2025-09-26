@@ -83,7 +83,9 @@ const RoomPage: React.FC = () => {
     });
 
     socket.on("navigateToProblemset", ({roomId, room}) => {
-      const team = room.teamA.includes(currentUserName) ? "A" : "B";
+      console.log("🔥 navigateToProblemset event received:", roomId, room);
+      const team = room.teamA.some((p: { pid: string; ready: boolean } | null) => p && p.pid === currentUserName) ? "A" : "B";
+      console.log("➡️ Determined team:", team, "for user:", currentUserName);
       navigate(`/room/${roomId}/problemset/team/${team}`);
     })
 
@@ -108,7 +110,7 @@ const RoomPage: React.FC = () => {
 
   const handleStart = async () => {
     await populateFirebase();
-    socket.emit("startGame", { roomId })
+    socket.emit("startGame", { roomId, username: currentUserName })
   }
 
   const populateFirebase = async () => {

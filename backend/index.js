@@ -63,6 +63,8 @@ io.on("connection", (socket) => {
       };
     }
 
+    console.log("Room created:", roomId, rooms[roomId]);
+
     userToRoom[username] = { roomId }
     socket.join(roomId);
 
@@ -109,9 +111,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("startGame", ({ roomId }) => {
+  socket.on("startGame", ({ roomId, username }) => {
     const room = rooms[roomId]
-    if(!room || room.owner !== username || room.status === 'in-progress') return;
+    
+    if(!room || room.owner !== username) return;
+    console.log("here");
 
     const allReady = [...room.teamA, ...room.teamB]
     .filter(Boolean)
@@ -136,6 +140,7 @@ io.on("connection", (socket) => {
 
     activeTimers.set(roomId, timerId);
 
+    console.log("🚀 Emitting navigateToProblemset to room", roomId);
     io.to(roomId).emit("navigateToProblemset", { roomId, room })
   });
 
