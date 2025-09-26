@@ -11,7 +11,7 @@ import Problemset from "./pages/Problemset"
 import GameFinishPage from "./pages/GameFinishPage"
 import NotFound from "./pages/NotFound"
 import './App.css'
-import { UserProvider } from "./utils/userProvider"
+import { UserProvider } from "./hooks/useUser"
 
 function App() {
 

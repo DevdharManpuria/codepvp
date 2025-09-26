@@ -40,11 +40,11 @@ const RoomPage: React.FC = () => {
   const navigate = useNavigate();
 
   //getting firebase user
-  const { user } = useUser()
+  const { user, loading } = useUser()
   
   useEffect(() => {
-      if(!user) navigate("/login");
-  })
+      if(!user && !loading) navigate("/login");
+  }, [])
   
   // Placeholder for the current user's ID
   const currentUserName = user?.displayName || user?.email || "Anon";
