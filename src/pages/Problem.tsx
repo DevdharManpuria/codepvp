@@ -155,11 +155,22 @@ const Problem: React.FC = () => {
         }
     }, [isMatchOver]);
 
+
+    // --- Collaborative Editing: Prevent remote overwrite of local typing ---
+    const isLocalChange = useRef(false);
     const sendChange = useMemo(() =>
-    debounce((newValue: string) => {
-      socket?.emit("editorChange", { roomId, teamId, problemId, code: newValue, source: currentUserName });
-    }, 1000),
-  [socket, roomId, problemId, currentUserName]);
+      debounce((newValue: string) => {
+        socket?.emit("editorChange", { roomId, teamId, problemId, code: newValue, source: currentUserName });
+        isLocalChange.current = false; // After sending, reset
+      }, 1000),
+      [socket, roomId, teamId, problemId, currentUserName]
+    );
+
+    function handleEditorChange(newValue: string | undefined) {
+      setCode(newValue || "");
+      isLocalChange.current = true;
+      sendChange(newValue || "");
+    }
 
     // Fetch problem data
     useEffect(() => {
@@ -176,13 +187,13 @@ const Problem: React.FC = () => {
 
     }, [roomId, problemId, currentUserName]);
 
-    // Listening changes on editor
+    // Listening changes on editor (ignore remote if local typing)
     useEffect(() => {
         if (!socket) return;
 
         const handleRemoteChange = (data: { code: string; source: string }) => {
-
-            if(data.source == currentUserName) return;
+            if (data.source === currentUserName) return;
+            if (isLocalChange.current) return; // Don't overwrite local typing
 
             const editor = editorRef.current;
             const model = editor?.getModel();
@@ -197,7 +208,14 @@ const Problem: React.FC = () => {
         return () => {
             socket.off("editorUpdate", handleRemoteChange);
         };
-    }, [socket]);
+    }, [socket, currentUserName]);
+
+    // Flush debounce on unmount to avoid losing unsent changes
+    useEffect(() => {
+      return () => {
+        sendChange.flush && sendChange.flush();
+      };
+    }, [sendChange]);
 
     async function getDocumentData(collectionName: string, documentId: string) {
         const docRef = doc(db, collectionName, documentId);
@@ -516,22 +534,18 @@ const Problem: React.FC = () => {
         <div className="w-1/2 flex flex-col border-l border-gray-700/50">
           {/* This is now just a placeholder for the editor */}
           <div className="h-4/6 bg-gray-900/50 p-4">
-            <Editor 
-                theme="vs-dark" 
-                defaultLanguage='python' 
-                value={code} 
-                options={{
-                    minimap: { enabled: false },
-                    fontSize: 16,
-                    wordWrap: 'on',
-                }}
-                onMount={handleEditorDidMount}
-                onChange={(newValue) => {
-                  setCode(newValue || "");
-
-                  sendChange(newValue || "");
-                }}
-            />
+      <Editor 
+        theme="vs-dark" 
+        defaultLanguage='python' 
+        value={code} 
+        options={{
+          minimap: { enabled: false },
+          fontSize: 16,
+          wordWrap: 'on',
+        }}
+        onMount={handleEditorDidMount}
+        onChange={handleEditorChange}
+      />
           </div>
           <div ref={testResultsRef} className="flex justify-start px-5 items-center p-0 bg-gray-900/50 border-t border-gray-700/50 gap-4">
             <div className="flex h-full gap-3 flex-col w-1/3 p-3 bg-gray-900/70 border-r border-gray-700/50 rounded-l-lg">
