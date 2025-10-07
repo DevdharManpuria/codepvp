@@ -9,10 +9,10 @@ const MultiPlayer: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const { user } = useUser()
-  
+  const { user, loading } = useUser()
+    
   useEffect(() => {
-      if(!user) navigate("/login");
+      if(!user && !loading) navigate("/login");
   })
 
   const handleCreateRoom = () => {
