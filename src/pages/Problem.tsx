@@ -12,47 +12,7 @@ import { markTeamSolved } from './Problemset';
 import { useMatchTimer } from '../hooks/useMatchTimer';
 import type { gameRes } from './GameFinishPage';
 
-
-// interface ProblemData {
-//     category: string;
-//     difficulty: string;
-//     slug: string;
-//     title: string;
-//     stmt: string;
-//     testcases: {
-//             stdin: string;
-//             expected_output: string;
-//             hidden: boolean;
-//             display: {
-//                 input: string;
-//                 output: string
-//             }
-//     }[];
-//     constraints: string[];
-//     starter_code: {
-//       c: string;
-//       cpp: string;
-//       csharp: string;
-//       dart: string;
-//       elixir: string;
-//       erlang: string;
-//       golang: string;
-//       java: string;
-//       javascript: string;
-//       kotlin: string;
-//       php: string;
-//       python: string;
-//       python3: string;
-//       racket: string;
-//       ruby: string;
-//       rust: string;
-//       scala: string;
-//       swift: string;
-//       typescript: string;
-//     }
-//     tags: string[];
-// }
-
+// Firebase schema for problem data
 export interface ProblemData {
   constraints: string;
   difficulty: string;
@@ -71,6 +31,7 @@ export interface ProblemData {
   title: string;
 }
 
+// Testcase interface for validating test cases
 interface TestCases {
   input: string;
   expected: string;
@@ -81,6 +42,7 @@ interface TestCases {
   errorMessage: string;
 }
 
+// Mapping monaco languageId to Judge0 languageId
 const languageIdMap = {
   python: 71,
   cpp: 12,
@@ -121,17 +83,20 @@ const Problem: React.FC = () => {
       setLanguage(event.target.value)
     }
 
+    // Function to mark points for a solved question for a team
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
       const docData = docSnap.data();
       
-      const teamKey = teamId == "A" ? "teamA" : "teamB";
+      const teamKey = teamId == "A" ? "teamA" : "teamB"; // Get Team
       const problemArray = docData?.allProblems || [];
-      const problem = problemArray.find((p: any) => p.id === problemId);
+      const problem = problemArray.find((p: any) => p.id === problemId); // Get Problem solved
 
+      // If problem already marked as solved then dont consider it
       if (docData?.[teamKey].solvedProblems.includes(problem.title)) return ;
 
+      // Need a better way to award points because this is exploitable
       const currentScore = docData?.[teamKey].score;
       const pointsAwarded = 10 * passed;
 

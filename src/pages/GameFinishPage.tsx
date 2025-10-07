@@ -5,6 +5,7 @@ import { db } from '../../firebaseConfig';
 import { useUser } from '../hooks/useUser';
 import type { ProblemData } from './Problem';
 
+// Schema for firebase data
 export interface gameRes {
     winningTeam: string;
     teamA: {
