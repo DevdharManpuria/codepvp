@@ -9,6 +9,19 @@ const MultiPlayer: React.FC = () => {
 
   const navigate = useNavigate();
 
+  const activeRooms = [
+    {
+      roomId: 100000,
+      roomName: "MyRoom",
+      numberOfPeople: 2
+    },
+    {
+      roomId: 200000,
+      roomName: "NotMyRoom",
+      numberOfPeople: 5
+    }
+  ]
+
   const { user, loading } = useUser()
     
   useEffect(() => {
@@ -73,6 +86,32 @@ const MultiPlayer: React.FC = () => {
         {/* Conditional Input for Joining a Room */}
         {showJoinInput && (
           <div className="w-full flex flex-col gap-4 p-4 border border-gray-700/50 rounded-lg bg-gray-900/30">
+
+            <h3 className="text-xl text-cyan-300 font-semibold text-center">Join an Active Room</h3>
+            <div className="flex flex-col gap-3 max-h-48 overflow-y-auto pr-2">
+              { activeRooms.map((room) => (
+                <div 
+                  key={room.roomId}
+                  // onClick={() => handleJoinFromList(room.roomId)}
+                  className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60 cursor-pointer'
+                >
+                  <div>
+                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.roomName }</p>
+                    <p className='text-sm text-cyan-500' >{ room.numberOfPeople }/8 Players</p>
+                  </div>
+                  <div className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md'>
+                    Join
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-600/50"></div>
+                <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+                <div className="flex-grow border-t border-gray-600/50"></div>
+            </div>
+
             <input 
               type="text" 
               value={code}
