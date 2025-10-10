@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { socket } from "../utils/socket";
 import { useMatchTimer } from '../hooks/useMatchTimer';
 import type { gameRes } from "./GameFinishPage";
+import { useUser } from "../hooks/useUser";
 
 export const markTeamSolved = async (teamId: string, problemId: string, roomId: string, data: gameRes) => {
 
@@ -55,6 +56,15 @@ export default function Problemset() {
 
   const { timeLeft, isMatchOver } = useMatchTimer(roomId);
 
+  const { user, loading } = useUser();
+
+  const currentUserName = user?.displayName || user?.email || "Anon";
+
+  useEffect(() => {
+    if(!user && !loading) navigate("/login");
+  })
+
+
   useEffect(() => {
       if (isMatchOver) {
           console.log("Match ended. Auto-submitting code...");
@@ -63,16 +73,43 @@ export default function Problemset() {
   }, [isMatchOver]);
 
   useEffect(() => {
+    if (!roomId || !teamId) return;
+    
     const fetchData = async () => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
+
+      // Redirects to 404 if room not created earlier
+      if(!docSnap.exists()) navigate("/404");
+
+      const teamKey = teamId == "A" ? "teamA" : "teamB";
+
+        const players: {
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
+        }[] = docSnap.data()?.[teamKey].players || [];
+
+        let pIdx = -1
+
+        pIdx = players.findIndex(
+          (p) => p.pid.pid === currentUserName
+        );
+
+        console.log(pIdx)
+        console.log(currentUserName)
+
+        if (pIdx == -1) navigate("/404");
 
       setData(docSnap.data() as gameRes)
       
       }
 
     fetchData();
-  }, [roomId]);
+  }, [roomId, teamId, navigate]);
 
   useEffect(() => {
     socket.emit("joinProblemset", { roomId, teamId });

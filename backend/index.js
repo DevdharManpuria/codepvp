@@ -4,18 +4,18 @@ import { Server } from "socket.io";
 import { createClient } from 'redis';
 import 'dotenv/config';
 
-const client = createClient({
-    username: 'default',
-    password: process.env.REDIS_PASS,
-    socket: {
-        host: 'redis-18903.c8.us-east-1-2.ec2.redns.redis-cloud.com',
-        port: 18903
-    }
-});
+// const client = createClient({
+//     username: 'default',
+//     password: process.env.REDIS_PASS,
+//     socket: {
+//         host: 'redis-18903.c8.us-east-1-2.ec2.redns.redis-cloud.com',
+//         port: 18903
+//     }
+// });
 
-client.on('error', err => console.log('Redis Client Error', err));
+// client.on('error', err => console.log('Redis Client Error', err));
 
-await client.connect();
+// await client.connect();
 
 // await client.set('foo', 'bar');
 // const result = await client.get('foo');
@@ -37,7 +37,7 @@ const activeTimers = new Map();
 io.on("connection", (socket) => {
 
   // This is for joining the room
-  socket.on("joinRoom", ({ roomId, username }) => {
+  socket.on("joinRoom", ({ roomId, username, SLOT_COUNT }) => {
 
     console.log(`User ${username} joined room ${roomId}`);
 
@@ -56,8 +56,14 @@ io.on("connection", (socket) => {
     }
 
     if (!rooms[roomId]) {
-      rooms[roomId] = { teamA: [null, null], teamB: [null, null] };
+      rooms[roomId] = {
+        owner: username,
+        teamA: Array(SLOT_COUNT).fill(null), // { pid, ready }
+        teamB: Array(SLOT_COUNT).fill(null),
+      };
     }
+
+    console.log("Room created:", roomId, rooms[roomId]);
 
     userToRoom[username] = { roomId }
     socket.join(roomId);
@@ -66,22 +72,26 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("roomUpdate", rooms[roomId]);
   });
 
-  socket.on("joinSlot", ({ roomId, team, slotIndex, username }) => {
+  socket.on("joinSlot", ({ roomId, team, slotIndex, username, SLOT_COUNT }) => {
     if (!rooms[roomId]) {
-      rooms[roomId] = { teamA: [null, null], teamB: [null, null] };
+      rooms[roomId] = {
+        owner: username,
+        teamA: Array(SLOT_COUNT).fill(null), // { pid, ready }
+        teamB: Array(SLOT_COUNT).fill(null),
+      };
     }
 
     const room = rooms[roomId];
 
     // 1. Prevent duplicates — remove user from all slots before placing them
-    room.teamA = room.teamA.map((p) => (p === username ? null : p));
-    room.teamB = room.teamB.map((p) => (p === username ? null : p));
+    room.teamA = room.teamA.map((p) => (p && p.pid === username ? null : p));
+    room.teamB = room.teamB.map((p) => (p && p.pid === username ? null : p));
 
     // 2. Put them in the requested slot if it's empty
     const targetTeam = team === "A" ? room.teamA : room.teamB;
 
-    if (targetTeam[slotIndex] === null) {
-        targetTeam[slotIndex] = username;
+    if (!targetTeam[slotIndex]) {
+        targetTeam[slotIndex] = { pid: username, ready: false };
     }
 
     userToRoom[username] = { roomId, username }
@@ -91,9 +101,27 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("roomUpdate", room);
   });
 
-  socket.on("startGame", ({ roomId }) => {
+  socket.on("toggleReady", ({ roomId, team, slotIndex, username }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const slot = room[`team${team}`][slotIndex];
+    if (slot && slot.pid === username) {
+      slot.ready = !slot.ready;
+      io.to(roomId).emit("roomUpdate", room);
+    }
+  });
+
+  socket.on("startGame", ({ roomId, username }) => {
     const room = rooms[roomId]
-    if(!room || room.status === 'in-progress') return;
+    
+    if(!room || room.owner !== username) return;
+    console.log("here");
+
+    const allReady = [...room.teamA, ...room.teamB]
+    .filter(Boolean)
+    .every(p => p.ready);
+
+    if(!allReady) return;
 
     room.status = 'in-progress';
     room.duration = process.env.TIME_DURATION_TEST; // 30 minutes in seconds
@@ -112,6 +140,7 @@ io.on("connection", (socket) => {
 
     activeTimers.set(roomId, timerId);
 
+    console.log("🚀 Emitting navigateToProblemset to room", roomId);
     io.to(roomId).emit("navigateToProblemset", { roomId, room })
   });
 
@@ -140,7 +169,7 @@ io.on("connection", (socket) => {
     io.to(`${roomId}-team-${teamId}`).emit("solvedProblem", { problemId, teamId });
   });
 
-socket.on("finishGame", ({ roomId, teamId }) => {
+  socket.on("finishGame", ({ roomId, teamId }) => {
     const room = rooms[roomId];
     if (!room || room.status !== 'in-progress') return;
 
@@ -177,8 +206,8 @@ socket.on("finishGame", ({ roomId, teamId }) => {
     console.log("❌ Disconnected:", username, "from Room:", roomId);
 
     // Remove user
-    room.teamA = room.teamA.map((p) => (p === username ? null : p));
-    room.teamB = room.teamB.map((p) => (p === username ? null : p));
+    room.teamA = room.teamA.map((p) => (p && p.pid === username ? null : p));
+    room.teamB = room.teamB.map((p) => (p && p.pid === username ? null : p));
 
     delete userToRoom[username];
 
@@ -201,8 +230,8 @@ socket.on("finishGame", ({ roomId, teamId }) => {
     if(!room) return;
 
     // Remove user
-    room.teamA = room.teamA.map((p) => (p === username ? null : p));
-    room.teamB = room.teamB.map((p) => (p === username ? null : p));
+    room.teamA = room.teamA.map((p) => (p && p.pid === username ? null : p));
+    room.teamB = room.teamB.map((p) => (p && p.pid === username ? null : p));
 
     delete userToRoom[username];
     io.to(roomId).emit("roomUpdate", room);

@@ -81,6 +81,18 @@ interface TestCases {
   errorMessage: string;
 }
 
+const languageIdMap = {
+  python: 71,
+  cpp: 12,
+  java: 25,
+  javascript: 26,
+  typescript: 45,
+  go: 22,
+  rust: 41
+} as const;
+
+type Language = keyof typeof languageIdMap;
+
 const Problem: React.FC = () => {
 
     const { problemId } = useParams<{ problemId: string }>();
@@ -89,6 +101,7 @@ const Problem: React.FC = () => {
     const [data, setData] = useState<ProblemData | null>(null);
     const [passData, setPassData] = useState<gameRes | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [language, setLanguage] = useState<Language>("python");
 
     const { user } = useUser();
     const currentUserName = user?.displayName || user?.email || "Anon";
@@ -103,6 +116,10 @@ const Problem: React.FC = () => {
 
     const { timeLeft, isMatchOver } = useMatchTimer(roomId);
     const hasAutoSubmitted = useRef(false);
+
+    const handleLangChange = (event: any) => {
+      setLanguage(event.target.value)
+    }
 
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
@@ -123,13 +140,16 @@ const Problem: React.FC = () => {
       });
 
       const players: {
-        pid: string;
-        points: number;
-        problemsSolved: number;
-      }[] = docData?.[teamKey].players || [];
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
+        }[] = docSnap.data()?.[teamKey].players || [];
 
       const playerIndex = players.findIndex(
-        (p) => p.pid === currentUserName
+        (p) => p.pid.pid === currentUserName
       );
 
       if (playerIndex !== -1) {
@@ -155,11 +175,22 @@ const Problem: React.FC = () => {
         }
     }, [isMatchOver]);
 
+
+    // --- Collaborative Editing: Prevent remote overwrite of local typing ---
+    const isLocalChange = useRef(false);
     const sendChange = useMemo(() =>
-    debounce((newValue: string) => {
-      socket?.emit("editorChange", { roomId, teamId, problemId, code: newValue, source: currentUserName });
-    }, 1000),
-  [socket, roomId, problemId, currentUserName]);
+      debounce((newValue: string) => {
+        socket?.emit("editorChange", { roomId, teamId, problemId, code: newValue, source: currentUserName });
+        isLocalChange.current = false; // After sending, reset
+      }, 1000),
+      [socket, roomId, teamId, problemId, currentUserName]
+    );
+
+    function handleEditorChange(newValue: string | undefined) {
+      setCode(newValue || "");
+      isLocalChange.current = true;
+      sendChange(newValue || "");
+    }
 
     // Fetch problem data
     useEffect(() => {
@@ -176,13 +207,13 @@ const Problem: React.FC = () => {
 
     }, [roomId, problemId, currentUserName]);
 
-    // Listening changes on editor
+    // Listening changes on editor (ignore remote if local typing)
     useEffect(() => {
         if (!socket) return;
 
         const handleRemoteChange = (data: { code: string; source: string }) => {
-
-            if(data.source == currentUserName) return;
+            if (data.source === currentUserName) return;
+            if (isLocalChange.current) return; // Don't overwrite local typing
 
             const editor = editorRef.current;
             const model = editor?.getModel();
@@ -197,7 +228,14 @@ const Problem: React.FC = () => {
         return () => {
             socket.off("editorUpdate", handleRemoteChange);
         };
-    }, [socket]);
+    }, [socket, currentUserName]);
+
+    // Flush debounce on unmount to avoid losing unsent changes
+    useEffect(() => {
+      return () => {
+        sendChange.flush && sendChange.flush();
+      };
+    }, [sendChange]);
 
     async function getDocumentData(collectionName: string, documentId: string) {
         const docRef = doc(db, collectionName, documentId);
@@ -337,7 +375,7 @@ const Problem: React.FC = () => {
           submissions.push(
             {
               source_code: normalizedCode,
-              language_id: 71,
+              language_id: languageIdMap[language],
               stdin: tc.input,
               expected_output: tc.output,
             }
@@ -359,7 +397,7 @@ const Problem: React.FC = () => {
           submissions.push(
             {
               source_code: normalizedCode,
-              language_id: 71,
+              language_id: languageIdMap[language],
               stdin: tc.input,
               expected_output: tc.output,
             }
@@ -408,9 +446,38 @@ const Problem: React.FC = () => {
     }
 
     useEffect(() => {
+
+      if (!user) return;
+      if (!roomId) return;
+
       const fetchData = async () => {
         const docRef = doc(db, "RoomSet", roomId!);
         const docSnap = await getDoc(docRef);
+
+        // Redirects to 404 if room not created earlier
+        if(!docSnap.exists()) navigate("/404");
+
+        const teamKey = teamId == "A" ? "teamA" : "teamB";
+
+        const players: {
+          pid: {
+            pid: string;
+            ready: boolean;
+            points: number;
+            problemSolved: number;
+          };
+        }[] = docSnap.data()?.[teamKey].players || [];
+
+        let pIdx = -1
+
+        pIdx = players.findIndex(
+          (p) => p.pid.pid === currentUserName
+        );
+
+        console.log(pIdx)
+        console.log(currentUserName)
+
+        if (pIdx == -1) navigate("/404");
   
         setPassData(docSnap.data() as gameRes)
         
@@ -491,25 +558,30 @@ const Problem: React.FC = () => {
         </div>
 
         {/* Right Side: Code Editor and Actions */}
-        <div className="w-1/2 flex flex-col border-l border-gray-700/50">
+        <div className="w-1/2 flex flex-col justify-between border-l border-gray-700/50">
           {/* This is now just a placeholder for the editor */}
-          <div className="h-4/6 bg-gray-900/50 p-4">
-            <Editor 
-                theme="vs-dark" 
-                defaultLanguage='python' 
-                value={code} 
-                options={{
-                    minimap: { enabled: false },
-                    fontSize: 16,
-                    wordWrap: 'on',
-                }}
-                onMount={handleEditorDidMount}
-                onChange={(newValue) => {
-                  setCode(newValue || "");
-
-                  sendChange(newValue || "");
-                }}
-            />
+          <div className="h-4/6 bg-gray-900/50 p-2">
+          <select className='bg-black hover:brightness-150 transition-normal duration-1000 text-purple-300 p-1 rounded-sm mb-1'  value={language} onChange={handleLangChange} >
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="go">Golang</option>
+            <option value="rust">Rust</option>
+          </select>
+      <Editor 
+        theme="vs-dark" 
+        language={language} 
+        value={code} 
+        options={{
+          minimap: { enabled: false },
+          fontSize: 16,
+          wordWrap: 'on',
+        }}
+        onMount={handleEditorDidMount}
+        onChange={handleEditorChange}
+      />
           </div>
           <div ref={testResultsRef} className="flex justify-start px-5 items-center p-0 bg-gray-900/50 border-t border-gray-700/50 gap-4">
             <div className="flex h-full gap-3 flex-col w-1/3 p-3 bg-gray-900/70 border-r border-gray-700/50 rounded-l-lg">

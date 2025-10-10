@@ -59,7 +59,7 @@ const Signup: React.FC = () => {
       {/* Header section with title and back button */}
       <div className="w-full flex justify-between items-center mb-8">
         <h2 className="text-5xl font-bold text-cyan-300" style={{ textShadow: `0 0 8px #0ff` }}>Signup</h2>
-        <button className="text-purple-300 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
+        <button onClick={() => navigate("/")} className="text-purple-300 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           Menu
         </button>

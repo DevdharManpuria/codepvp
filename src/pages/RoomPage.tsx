@@ -8,16 +8,32 @@ import { getDocs, collection, query, where, limit, setDoc, doc } from "firebase/
 import { db } from '../../firebaseConfig';
 
 type PlayerSlotProps = {
-    player: string | null;
+    player: { pid: string, ready: boolean } | null;
     onJoin: () => void;
+    onToggleReady: () => void;
     currentUserId: string;
 }
 
-const PlayerSlot: React.FC<PlayerSlotProps> = ({ player, onJoin, currentUserId }) => {
+const PlayerSlot: React.FC<PlayerSlotProps> = ({ player, onJoin, onToggleReady, currentUserId }) => {
   if (player) {
+    const isYou = player.pid === currentUserId;
     return (
-      <div className="h-16 flex items-center justify-center bg-gray-800/50 border border-gray-700 rounded-lg">
-        <span className="text-white text-lg truncate px-4">{player === currentUserId ? "You" : player}</span>
+      <div
+        className={`h-16 flex items-center justify-center border rounded-lg
+        ${player.ready ? "bg-green-600/60 border-green-500" : "bg-gray-800/50 border-gray-700"}`}
+      >
+        <span className="text-white text-lg truncate px-4">
+          {isYou ? "You" : player.pid}
+        </span>
+
+        {isYou && (
+          <button
+            onClick={onToggleReady}
+            className="ml-4 px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-sm"
+          >
+            {player.ready ? "Unready" : "Ready"}
+          </button>
+        )}
       </div>
     );
   }
@@ -34,29 +50,42 @@ const PlayerSlot: React.FC<PlayerSlotProps> = ({ player, onJoin, currentUserId }
 };
 
 const RoomPage: React.FC = () => {
-  const [teamA, setTeamA] = useState<(string | null)[]>([null, null]);
-  const [teamB, setTeamB] = useState<(string | null)[]>([null, null]);
+  const SLOT_COUNT = 4
+  const [teamA, setTeamA] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
+  const [teamB, setTeamB] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
+  const [owner, setOwner] = useState<string | null>(null);
   const { roomId } = useParams();
   const navigate = useNavigate();
 
   //getting firebase user
-  const { user } = useUser();
+  const { user, loading } = useUser()
+  
+  useEffect(() => {
+      if(!user && !loading) navigate("/login");
+  })
   
   // Placeholder for the current user's ID
   const currentUserName = user?.displayName || user?.email || "Anon";
 
+  const handleToggleReady = (team: 'A' | 'B', slotIndex: number) => {
+    socket.emit("toggleReady", { roomId, team, slotIndex, username: currentUserName });
+  };
+
   useEffect(() => {
     if(!currentUserName) return;
 
-    socket.emit("joinRoom", {roomId, username: currentUserName});
+    socket.emit("joinRoom", {roomId, username: currentUserName, SLOT_COUNT});
 
-    socket.on("roomUpdate", (room: { teamA: (string | null)[], teamB: (string | null)[] }) => {
+    socket.on("roomUpdate", (room) => {
       setTeamA(room.teamA);
       setTeamB(room.teamB);
+      setOwner(room.owner)
     });
 
     socket.on("navigateToProblemset", ({roomId, room}) => {
-      const team = room.teamA.includes(currentUserName) ? "A" : "B";
+      console.log("🔥 navigateToProblemset event received:", roomId, room);
+      const team = room.teamA.some((p: { pid: string; ready: boolean } | null) => p && p.pid === currentUserName) ? "A" : "B";
+      console.log("➡️ Determined team:", team, "for user:", currentUserName);
       navigate(`/room/${roomId}/problemset/team/${team}`);
     })
 
@@ -74,13 +103,14 @@ const RoomPage: React.FC = () => {
       team,
       slotIndex,
       username: currentUserName,
+      SLOT_COUNT
     });
 
   };
 
   const handleStart = async () => {
     await populateFirebase();
-    socket.emit("startGame", { roomId })
+    socket.emit("startGame", { roomId, username: currentUserName })
   }
 
   const populateFirebase = async () => {
@@ -101,7 +131,7 @@ const RoomPage: React.FC = () => {
       teamA: {
         name: "Team A",
         score: 0,
-        players: teamA.map((player) => ({
+        players: teamA.filter(player => player !== null).map((player) => ({
           pid: player,
           problemSolved: 0,
           points: 0,
@@ -111,7 +141,7 @@ const RoomPage: React.FC = () => {
       teamB: {
         name: "Team B",
         score: 0,
-        players: teamB.map((player) => ({
+        players: teamB.filter(player => player !== null).map((player) => ({
           pid: player,
           problemSolved: 0,
           points: 0,
@@ -153,7 +183,8 @@ const RoomPage: React.FC = () => {
               <PlayerSlot 
                 key={index} 
                 player={player} 
-                onJoin={() => handleJoinSlot("A", index)}  
+                onJoin={() => handleJoinSlot("A", index)} 
+                onToggleReady={() => handleToggleReady("A", index)} 
                 currentUserId={currentUserName}
               />
             ))}
@@ -169,6 +200,7 @@ const RoomPage: React.FC = () => {
                 key={index} 
                 player={player} 
                 onJoin={() => handleJoinSlot("B", index)}  
+                onToggleReady={() => handleToggleReady("B", index)} 
                 currentUserId={currentUserName}
               />
             ))}
@@ -177,15 +209,21 @@ const RoomPage: React.FC = () => {
       </div>
 
       {/* Start Game Button */}
-      <button className="w-full max-w-xs mx-auto font-bold text-gray-900 bg-green-400 border-2 border-green-400 rounded-lg py-3 text-xl
-        transition-all duration-300 transform hover:scale-105
-        hover:bg-transparent hover:text-green-300
-        hover:shadow-[0_0_20px_rgba(74,222,128,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={!teamA.some(p => p) || !teamB.some(p => p)}
-        onClick={handleStart}
-      >
-        Start Game
-      </button>
+      {owner === currentUserName && (
+        <button className="w-full max-w-xs mx-auto font-bold text-gray-900 bg-green-400 border-2 border-green-400 rounded-lg py-3 text-xl
+          transition-all duration-300 transform hover:scale-105
+          hover:bg-transparent hover:text-green-300
+          hover:shadow-[0_0_20px_rgba(74,222,128,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={
+            !teamA.some(p => p) || !teamB.some(p => p) || 
+            [...teamA, ...teamB].filter(Boolean).some(p => !p!.ready)
+          }
+          onClick={handleStart}
+        >
+          Start Game
+        </button>
+
+      )}
 
     </div>
     </div>
