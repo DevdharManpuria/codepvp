@@ -7,8 +7,35 @@ import { ActivityHeatmap } from "./components/dashboard/activity-heatmap"
 import { RecentActivity } from "./components/dashboard/recent-activity"
 import { DashboardNav } from "./components/dashboard/dashboard-nav"
 import AnimatedBackground from './components/AnimatedBackground'
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../hooks/useUser';
+import { useEffect } from "react"
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const { user, loading } = useUser()
+    
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+    }
+  }, [user, loading, navigate]); 
+
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full"/>
+      </div>
+    );
+  }
+
+
+  if (!user) {
+    return null;
+  }
+
+  // Main dashboard content
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <AnimatedBackground />

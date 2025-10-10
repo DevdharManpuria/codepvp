@@ -1,4 +1,4 @@
-"use client"
+
 
 import { useState, useEffect } from "react"
 
@@ -16,6 +16,9 @@ export function ActivityHeatmap() {
       { name: "Jul", days: 31 },
       { name: "Aug", days: 31 },
       { name: "Sep", days: 30 },
+      { name: "October", days: 31 },
+      { name: "November", days: 30 },
+      { name: "December", days: 31 }
     ]
 
     const data: { [key: string]: number[] } = {}

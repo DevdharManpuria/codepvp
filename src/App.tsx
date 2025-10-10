@@ -10,8 +10,10 @@ import RoomPage from "./pages/RoomPage"
 import Problemset from "./pages/Problemset"
 import GameFinishPage from "./pages/GameFinishPage"
 import NotFound from "./pages/NotFound"
+import Dashboard from "./pages/Dahboard"
 import './App.css'
 import { UserProvider } from "./hooks/useUser"
+
 
 function App() {
 

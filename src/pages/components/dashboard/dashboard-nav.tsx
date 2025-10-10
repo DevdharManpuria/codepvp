@@ -13,7 +13,7 @@ export function DashboardNav() {
           </Link>
           
           <div className="hidden lg:flex items-center space-x-1">
-            <Link to="/home" className="px-3 py-2 text-gray-300 hover:text-cyan-400 hover:bg-gray-800/50 rounded-md text-sm">
+            <Link to="/" className="px-3 py-2 text-gray-300 hover:text-cyan-400 hover:bg-gray-800/50 rounded-md text-sm">
               Home
             </Link>
             <Link to="/SinglePlayer" className="px-3 py-2 text-gray-300 hover:text-cyan-400 hover:bg-gray-800/50 rounded-md text-sm">
