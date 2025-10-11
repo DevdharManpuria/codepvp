@@ -2,35 +2,73 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
+import { db } from '../../firebaseConfig';
+import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
+
+interface activeRoom {
+  name: string;
+  numberOfPeople: number;
+  public: boolean;
+  roomId: number
+}
 
 const MultiPlayer: React.FC = () => {
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [code, setCode] = useState();
+  const [activeRooms, setActiveRooms] = useState<activeRoom[]>([]);
 
   const navigate = useNavigate();
 
-  const activeRooms = [
-    {
-      roomId: 100000,
-      roomName: "MyRoom",
-      numberOfPeople: 2
-    },
-    {
-      roomId: 200000,
-      roomName: "NotMyRoom",
-      numberOfPeople: 5
-    }
-  ]
+  // const activeRooms = [
+  //   {
+  //     roomId: 100000,
+  //     roomName: "MyRoom",
+  //     numberOfPeople: 2
+  //   },
+  //   {
+  //     roomId: 200000,
+  //     roomName: "NotMyRoom",
+  //     numberOfPeople: 5
+  //   }
+  // ]
 
   const { user, loading } = useUser()
     
   useEffect(() => {
-      if(!user && !loading) navigate("/login");
+    if(!user && !loading) navigate("/login");
   })
+
+  useEffect(() => {
+    fetchRooms();
+  })
+
+  const fetchRooms = async () => {
+    const collectionRef = collection(db, "rooms");
+    const querySnapshot = await getDocs(collectionRef);
+
+    const rooms: activeRoom[] = querySnapshot.docs.map((doc) => ({
+      ...(doc.data() as activeRoom),
+    }));
+
+    setActiveRooms(rooms)
+  }
 
   const handleCreateRoom = () => {
     const roomId = Math.floor(Math.random() * 100000) + 100000;
+    populateFirebase(roomId)
     navigate(`/room/${roomId}`);
+  }
+
+  const populateFirebase = async (roomId: number) => {
+    const docRef = doc(db, "rooms", roomId.toString())
+
+    await setDoc(docRef, {
+      name: "New Room", 
+      roomId: roomId,
+      numberOfPeople: 0,
+      public: true
+    })
+
   }
 
   const handleJoin = () => {
@@ -96,7 +134,7 @@ const MultiPlayer: React.FC = () => {
                   className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60 cursor-pointer'
                 >
                   <div>
-                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.roomName }</p>
+                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.name }</p>
                     <p className='text-sm text-cyan-500' >{ room.numberOfPeople }/8 Players</p>
                   </div>
                   <div className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md'>

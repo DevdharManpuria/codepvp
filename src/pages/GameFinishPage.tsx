@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { useUser } from '../hooks/useUser';
 import type { ProblemData } from './Problem';
@@ -55,6 +55,15 @@ interface TeamCardProps {
 
 const TeamCard: React.FC<TeamCardProps> = ({ teamData, allProblems }) => {
   const teamColor = teamData.name === 'Team A' ? 'cyan' : 'purple';
+  const { roomId } = useParams();
+
+  useEffect(() => {
+    delRoom()
+  })
+
+  const delRoom = async () => {
+    await deleteDoc(doc(db, "cities", roomId!));
+  }
 
   return (
     <div className="bg-gray-900/40 border border-gray-700/50 rounded-lg p-4">
