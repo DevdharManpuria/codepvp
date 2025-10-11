@@ -6,6 +6,7 @@ import { useUser } from '../hooks/useUser';
 import { useNavigate } from 'react-router-dom';
 import { getDocs, collection, query, where, limit, setDoc, doc } from "firebase/firestore";
 import { db } from '../../firebaseConfig';
+import ChatBox from './components/chat-box';
 
 type PlayerSlotProps = {
     player: { pid: string, ready: boolean } | null;
@@ -56,6 +57,7 @@ const RoomPage: React.FC = () => {
   const [owner, setOwner] = useState<string | null>(null);
   const { roomId } = useParams();
   const navigate = useNavigate();
+   const [isChatOpen, setIsChatOpen] = useState(false);
 
   //getting firebase user
   const { user, loading } = useUser()
@@ -153,11 +155,11 @@ const RoomPage: React.FC = () => {
   }
 
   return (
-    <div className='bg-gray-900 flex justify-center items-center h-dvh w-dvw ' >
-    <div className="z-10 flex flex-col p-8 max-w-5xl w-full
-      bg-black/30 backdrop-blur-md 
-      border border-cyan-400/20 rounded-xl
-      shadow-2xl shadow-cyan-500/10">
+    <div className='bg-gray-900 flex justify-center items-center h-dvh w-dvw relative' > {/* Added relative */}
+      <div className="z-10 flex flex-col p-8 max-w-5xl w-full
+        bg-black/30 backdrop-blur-md 
+        border border-cyan-400/20 rounded-xl
+        shadow-2xl shadow-cyan-500/10">
       
       {/* Header */}
       <div className="w-full flex justify-between items-center mb-6">
@@ -226,7 +228,37 @@ const RoomPage: React.FC = () => {
       )}
 
     </div>
+      
+  
+      <button 
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-6 w-21 h-21 rounded-full 
+          bg-gray-900/80 backdrop-blur-sm border border-cyan-500/30
+          hover:border-cyan-400 transition-all duration-300
+          shadow-lg hover:shadow-cyan-500/25
+          group z-[60]"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-full 
+          opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-purple-500 rounded-full opacity-0 
+          group-hover:opacity-30 animate-pulse blur-md" />
+        <img 
+          src="/chat.png" 
+          alt="Chat" 
+          className="w-15 h-15 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+            group-hover:scale-110 transition-transform duration-300"
+        />
+      </button>
+
+    
+      {isChatOpen && (
+        <div className="fixed bottom-20 right-6 w-96 h-[36rem] z-[60]">
+          <ChatBox onClose={() => setIsChatOpen(false)} />
+        </div>
+      )}
+    
     </div>
+    
   );
 };
 
