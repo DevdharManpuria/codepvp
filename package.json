@@ -20,6 +20,7 @@
     "@tailwindcss/vite": "^4.1.12",
     "firebase": "^12.1.0",
     "lodash": "^4.17.21",
+    "lucide-react": "^0.545.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-loading-indicators": "^1.0.1",
