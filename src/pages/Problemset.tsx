@@ -6,6 +6,7 @@ import { socket } from "../utils/socket";
 import { useMatchTimer } from '../hooks/useMatchTimer';
 import type { gameRes } from "./GameFinishPage";
 import { useUser } from "../hooks/useUser";
+import ChatBox from "./components/chat-box";
 
 export const markTeamSolved = async (teamId: string, problemId: string, roomId: string, data: gameRes) => {
 
@@ -49,6 +50,7 @@ export default function Problemset() {
   const [data, setData] = useState<gameRes | null>(null);
   const [teamAFinished, setTeamAFinished] = useState(false);
   const [teamBFinished, setTeamBFinished] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
   const { teamId, roomId } = useParams();
 
@@ -282,6 +284,33 @@ useEffect(() => {
           )}
         </div>
       </div>
+      <button 
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-6 w-21 h-21 rounded-full 
+          bg-gray-900/80 backdrop-blur-sm border border-cyan-500/30
+          hover:border-cyan-400 transition-all duration-300
+          shadow-lg hover:shadow-cyan-500/25
+          group z-[60]"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-full 
+          opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-purple-500 rounded-full opacity-0 
+          group-hover:opacity-30 animate-pulse blur-md" />
+        <img 
+          src="/chat.png" 
+          alt="Chat" 
+          className="w-15 h-15 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+            group-hover:scale-110 transition-transform duration-300"
+        />
+      </button>
+
+    
+      {isChatOpen && (
+        <div className="fixed bottom-20 right-6 w-96 h-[36rem] z-[60]">
+          <ChatBox onClose={() => setIsChatOpen(false)} />
+        </div>
+      )}
+    
     </div>
   );
 }
