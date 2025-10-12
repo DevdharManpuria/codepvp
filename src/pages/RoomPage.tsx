@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { socket } from '../utils/socket';
 import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import { useNavigate } from 'react-router-dom';
 import { getDocs, getDoc, collection, query, where, limit, setDoc, doc, updateDoc } from "firebase/firestore";
@@ -84,7 +83,8 @@ const RoomPage: React.FC = () => {
     socket.on("roomUpdate", (room) => {
       setTeamA(room.teamA);
       setTeamB(room.teamB);
-      setOwner(room.owner)
+      setOwner(room.owner);
+      setIsPublic(room.public);
     });
 
     socket.on("navigateToProblemset", ({roomId, room}) => {
@@ -96,7 +96,6 @@ const RoomPage: React.FC = () => {
 
     return () => {
       handleJoinLeave(roomId, -1);
-      socket.emit("disconnectRoom", {username: currentUserName, roomId})
       socket.off("roomUpdate");
       socket.off("navigateToProblemset");
     }
@@ -115,19 +114,10 @@ const RoomPage: React.FC = () => {
   };
 
   const handleTogglePrivacy = () => {
-    if (owner === currentUserName) {
-        toggleFirebase(roomId, isPublic)
-        // UI feedback for mock
-        setIsPublic(!isPublic);
+    if (owner == currentUserName) {
+      socket.emit("togglePrivacy", {isPublic, roomId});
     }
   };
-
-  const toggleFirebase = async (roomId: string | undefined, isPublic: boolean) => {
-    const docRef = doc(db, "rooms", roomId!);
-    await updateDoc(docRef, {
-      public: !isPublic
-    });
-  }
 
   const handleJoinLeave = async (roomId: string | undefined, join: number) => {
     const docRef = doc(db, "rooms",roomId! );
@@ -214,12 +204,14 @@ const RoomPage: React.FC = () => {
                 </label>
             </div>}
         </div>
-        <Link to="/MultiPlayer" >
-        <button className="text-red-400 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
+        <button onClick={() => {
+          socket.emit("disconnectRoom", {username: currentUserName, roomId});
+          navigate("/MultiPlayer")
+        }} 
+        className="text-red-400 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
           Leave Room
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
-        </Link>
       </div>
 
       {/* Teams Layout */}

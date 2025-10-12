@@ -21,13 +21,18 @@ export function setupSocket(io) {
       const room = rooms[roomId];
       if (!room) return;
 
-      room.teamA = room.teamA.map(p => (p?.pid === username ? null : p));
-      room.teamB = room.teamB.map(p => (p?.pid === username ? null : p));
+      room.teamA = room.teamA.filter(player => player !== username);
+      room.teamB = room.teamB.filter(player => player !== username);
 
       delete userToRoom[username];
-      io.to(roomId).emit("roomUpdate", room);
 
-      console.log(`❌ ${username} disconnected`);
+      const isEmpty = room.teamA.length === 0 && room.teamB.length === 0;
+
+      if (isEmpty) {
+          delete rooms[roomId];
+      } else {
+          io.to(roomId).emit("roomUpdate", room);
+      }
     });
   });
 }

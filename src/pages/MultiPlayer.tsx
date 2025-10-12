@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
-import { db } from '../../firebaseConfig';
-import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
 
 interface activeRoom {
   name: string;
   numberOfPeople: number;
   public: boolean;
-  roomId: number
+  roomId: string
 }
 
 const MultiPlayer: React.FC = () => {
@@ -38,38 +36,72 @@ const MultiPlayer: React.FC = () => {
     if(!user && !loading) navigate("/login");
   })
 
-  useEffect(() => {
-    fetchRooms();
-  })
+  // useEffect(() => {
+  //   fetchRooms();
+  // })
 
-  const fetchRooms = async () => {
-    const collectionRef = collection(db, "rooms");
-    const querySnapshot = await getDocs(collectionRef);
+  // const fetchRooms = async () => {
+  //   const collectionRef = collection(db, "rooms");
+  //   const querySnapshot = await getDocs(collectionRef);
 
-    const rooms: activeRoom[] = querySnapshot.docs.map((doc) => ({
-      ...(doc.data() as activeRoom),
-    }));
+  //   const rooms: activeRoom[] = querySnapshot.docs.map((doc) => ({
+  //     ...(doc.data() as activeRoom),
+  //   }));
 
-    setActiveRooms(rooms)
-  }
+  //   setActiveRooms(rooms)
+  // }
 
   const handleCreateRoom = () => {
     const roomId = Math.floor(Math.random() * 100000) + 100000;
-    populateFirebase(roomId)
+    // populateFirebase(roomId)
     navigate(`/room/${roomId}`);
   }
 
-  const populateFirebase = async (roomId: number) => {
-    const docRef = doc(db, "rooms", roomId.toString())
+  const getActiveRooms = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      let tempArr: activeRoom[] = [];
 
-    await setDoc(docRef, {
-      name: "New Room", 
-      roomId: roomId,
-      numberOfPeople: 0,
-      public: true
-    })
+      for (let key in json) {
 
+        if (json[key].public != true) return;
+
+        const teamA = json[key].teamA.filter((item: string | null) => item !== null)
+        const teamB = json[key].teamB.filter((item: string | null) => item !== null)
+
+        const count = teamA.length + teamB.length;
+        tempArr.push({
+          roomId: key,
+          name: "my room",
+          public: true,
+          numberOfPeople: count
+        })
+
+      }
+
+      setActiveRooms(tempArr);
+
+    } catch (err) {
+      console.log(err);
+    }
   }
+
+  // const populateFirebase = async (roomId: number) => {
+  //   const docRef = doc(db, "rooms", roomId.toString())
+
+  //   await setDoc(docRef, {
+  //     name: "New Room", 
+  //     roomId: roomId,
+  //     numberOfPeople: 0,
+  //     public: true
+  //   })
+
+  // }
 
   const handleJoin = () => {
     navigate(`/room/${code}`);
@@ -111,7 +143,10 @@ const MultiPlayer: React.FC = () => {
 
         {!showJoinInput && (
           <button 
-            onClick={() => setShowJoinInput(true)}
+            onClick={() => {
+              setShowJoinInput(true);
+              getActiveRooms();
+            }}
             className="w-full font-bold text-cyan-300 bg-transparent border-2 border-cyan-400/50 rounded-lg py-4 text-2xl
             transition-all duration-300 transform hover:scale-105
             hover:bg-cyan-300 hover:text-gray-900
@@ -134,7 +169,7 @@ const MultiPlayer: React.FC = () => {
                   className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60 cursor-pointer'
                 >
                   <div>
-                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.name }</p>
+                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.roomId }</p>
                     <p className='text-sm text-cyan-500' >{ room.numberOfPeople }/8 Players</p>
                   </div>
                   <div className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md'>

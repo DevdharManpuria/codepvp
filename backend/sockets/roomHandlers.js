@@ -17,7 +17,7 @@ export function roomHandlers(io, socket) {
         }
 
         if (!rooms[roomId]) {
-            rooms[roomId] = { owner: username, teamA: Array(SLOT_COUNT).fill(null), teamB: Array(SLOT_COUNT).fill(null) };
+            rooms[roomId] = { owner: username, teamA: Array(SLOT_COUNT).fill(null), teamB: Array(SLOT_COUNT).fill(null), public: true };
         }
 
         userToRoom[username] = { roomId };
@@ -28,9 +28,18 @@ export function roomHandlers(io, socket) {
         io.to(roomId).emit("roomUpdate", rooms[roomId]);
     });
 
+    socket.on("togglePrivacy", ({isPublic, roomId}) => {
+        if (!rooms[roomId]) return;
+        
+        rooms[roomId].public = !isPublic;
+
+        io.to(roomId).emit("roomUpdate", rooms[roomId]);
+
+    });
+
     socket.on("joinSlot", ({ roomId, team, slotIndex, username, SLOT_COUNT }) => {
         if (!rooms[roomId]) {
-            rooms[roomId] = { owner: username, teamA: Array(SLOT_COUNT).fill(null), teamB: Array(SLOT_COUNT).fill(null) };
+            rooms[roomId] = { owner: username, teamA: Array(SLOT_COUNT).fill(null), teamB: Array(SLOT_COUNT).fill(null), public: true };
         }
         const room = rooms[roomId];
 
@@ -54,5 +63,26 @@ export function roomHandlers(io, socket) {
             slot.ready = !slot.ready;
             io.to(roomId).emit("roomUpdate", room);
         }
+    });
+
+    socket.on("disconnectRoom", ({ username, roomId }) => {
+        const room = rooms[roomId];
+        if(!room) return;
+
+        room.teamA = room.teamA.map(p => (p && p.pid === username ? null : p));
+        room.teamB = room.teamB.map(p => (p && p.pid === username ? null : p));
+
+        delete userToRoom[username];
+
+        const isEmpty = [...room.teamA, ...room.teamB].every(p => p === null);
+
+        if (isEmpty) {
+            delete rooms[roomId];
+            console.log(`🗑️ Room ${roomId} deleted (empty after ${username} left)`);
+        } else {
+            io.to(roomId).emit("roomUpdate", room);
+        }
+
+        socket.leave(roomId);
     });
 }
