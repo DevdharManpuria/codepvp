@@ -1,3 +1,5 @@
+// useUser hook to get user info and auth
+
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { createContext, useContext, useState, useEffect } from "react";
 import { auth } from "../../firebaseConfig";

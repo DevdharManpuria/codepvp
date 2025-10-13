@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { socket } from '../utils/socket';
 import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import { useNavigate } from 'react-router-dom';
-import { getDocs, collection, query, where, limit, setDoc, doc } from "firebase/firestore";
+import { getDocs, getDoc, collection, query, where, limit, setDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from '../../firebaseConfig';
 import ChatBox from './components/chat-box';
 
@@ -55,6 +54,7 @@ const RoomPage: React.FC = () => {
   const [teamA, setTeamA] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
   const [teamB, setTeamB] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
   const [owner, setOwner] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(true);
   const { roomId } = useParams();
   const navigate = useNavigate();
    const [isChatOpen, setIsChatOpen] = useState(false);
@@ -63,7 +63,7 @@ const RoomPage: React.FC = () => {
   const { user, loading } = useUser()
   
   useEffect(() => {
-      if(!user && !loading) navigate("/login");
+    if(!user && !loading) navigate("/login");
   })
   
   // Placeholder for the current user's ID
@@ -78,10 +78,13 @@ const RoomPage: React.FC = () => {
 
     socket.emit("joinRoom", {roomId, username: currentUserName, SLOT_COUNT});
 
+    handleJoinLeave(roomId, 1)
+
     socket.on("roomUpdate", (room) => {
       setTeamA(room.teamA);
       setTeamB(room.teamB);
-      setOwner(room.owner)
+      setOwner(room.owner);
+      setIsPublic(room.public);
     });
 
     socket.on("navigateToProblemset", ({roomId, room}) => {
@@ -92,9 +95,9 @@ const RoomPage: React.FC = () => {
     })
 
     return () => {
-        socket.emit("disconnectRoom", {username: currentUserName, roomId})
-        socket.off("roomUpdate");
-        socket.off("navigateToProblemset");
+      handleJoinLeave(roomId, -1);
+      socket.off("roomUpdate");
+      socket.off("navigateToProblemset");
     }
 
   }, [roomId, currentUserName]);
@@ -109,6 +112,24 @@ const RoomPage: React.FC = () => {
     });
 
   };
+
+  const handleTogglePrivacy = () => {
+    if (owner == currentUserName) {
+      socket.emit("togglePrivacy", {isPublic, roomId});
+    }
+  };
+
+  const handleJoinLeave = async (roomId: string | undefined, join: number) => {
+    const docRef = doc(db, "rooms",roomId! );
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
+
+    const num = docSnap.data().numberOfPeople
+
+    await updateDoc(docRef, {
+      numberOfPeople: num + join
+    })
+  }
 
   const handleStart = async () => {
     await populateFirebase();
@@ -166,13 +187,31 @@ const RoomPage: React.FC = () => {
         <div>
             <h2 className="text-4xl font-bold text-cyan-300" style={{ textShadow: `0 0 8px #0ff` }}>Room Lobby</h2>
             <p className="text-purple-300">Room Code: <span className="font-bold text-white tracking-widest">{ roomId }</span></p>
+            {owner && <div className="flex items-center gap-3 mt-3">
+                <button
+                    id="privacy-toggle"
+                    onClick={handleTogglePrivacy}
+                    disabled={owner !== currentUserName}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isPublic ? 'bg-green-500' : 'bg-gray-600'}`}
+                >
+                    <span className="sr-only">Toggle Room Privacy</span>
+                    <span
+                        className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-300 ease-in-out ${isPublic ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                </button>
+                <label htmlFor="privacy-toggle" className={`text-sm font-medium select-none ${isPublic ? 'text-green-400' : 'text-red-400'}`}>
+                    Room is {isPublic ? 'Public' : 'Private'}
+                </label>
+            </div>}
         </div>
-        <Link to="/MultiPlayer" >
-        <button className="text-red-400 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
+        <button onClick={() => {
+          socket.emit("disconnectRoom", {username: currentUserName, roomId});
+          navigate("/MultiPlayer")
+        }} 
+        className="text-red-400 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
           Leave Room
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
-        </Link>
       </div>
 
       {/* Teams Layout */}

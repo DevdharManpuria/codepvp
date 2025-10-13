@@ -73,6 +73,7 @@ export interface ProblemData {
   title: string;
 }
 
+// Testcase interface for validating test cases
 interface TestCases {
   input: string;
   expected: string;
@@ -83,6 +84,7 @@ interface TestCases {
   errorMessage: string;
 }
 
+// Mapping monaco languageId to Judge0 languageId
 const languageIdMap = {
   python: 71,
   cpp: 12,
@@ -123,17 +125,20 @@ const Problem: React.FC = () => {
       setLanguage(event.target.value)
     }
 
+    // Function to mark points for a solved question for a team
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
       const docData = docSnap.data();
       
-      const teamKey = teamId == "A" ? "teamA" : "teamB";
+      const teamKey = teamId == "A" ? "teamA" : "teamB"; // Get Team
       const problemArray = docData?.allProblems || [];
-      const problem = problemArray.find((p: any) => p.id === problemId);
+      const problem = problemArray.find((p: any) => p.id === problemId); // Get Problem solved
 
+      // If problem already marked as solved then dont consider it
       if (docData?.[teamKey].solvedProblems.includes(problem.title)) return ;
 
+      // Need a better way to award points because this is exploitable
       const currentScore = docData?.[teamKey].score;
       const pointsAwarded = 10 * passed;
 

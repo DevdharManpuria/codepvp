@@ -3,22 +3,105 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 
+interface activeRoom {
+  name: string;
+  numberOfPeople: number;
+  public: boolean;
+  roomId: string
+}
+
 const MultiPlayer: React.FC = () => {
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [code, setCode] = useState();
+  const [activeRooms, setActiveRooms] = useState<activeRoom[]>([]);
 
   const navigate = useNavigate();
+
+  // const activeRooms = [
+  //   {
+  //     roomId: 100000,
+  //     roomName: "MyRoom",
+  //     numberOfPeople: 2
+  //   },
+  //   {
+  //     roomId: 200000,
+  //     roomName: "NotMyRoom",
+  //     numberOfPeople: 5
+  //   }
+  // ]
 
   const { user, loading } = useUser()
     
   useEffect(() => {
-      if(!user && !loading) navigate("/login");
+    if(!user && !loading) navigate("/login");
   })
+
+  // useEffect(() => {
+  //   fetchRooms();
+  // })
+
+  // const fetchRooms = async () => {
+  //   const collectionRef = collection(db, "rooms");
+  //   const querySnapshot = await getDocs(collectionRef);
+
+  //   const rooms: activeRoom[] = querySnapshot.docs.map((doc) => ({
+  //     ...(doc.data() as activeRoom),
+  //   }));
+
+  //   setActiveRooms(rooms)
+  // }
 
   const handleCreateRoom = () => {
     const roomId = Math.floor(Math.random() * 100000) + 100000;
+    // populateFirebase(roomId)
     navigate(`/room/${roomId}`);
   }
+
+  const getActiveRooms = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const json = await response.json();
+      let tempArr: activeRoom[] = [];
+
+      for (let key in json) {
+
+        if (json[key].public != true) return;
+
+        const teamA = json[key].teamA.filter((item: string | null) => item !== null)
+        const teamB = json[key].teamB.filter((item: string | null) => item !== null)
+
+        const count = teamA.length + teamB.length;
+        tempArr.push({
+          roomId: key,
+          name: "my room",
+          public: true,
+          numberOfPeople: count
+        })
+
+      }
+
+      setActiveRooms(tempArr);
+
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  // const populateFirebase = async (roomId: number) => {
+  //   const docRef = doc(db, "rooms", roomId.toString())
+
+  //   await setDoc(docRef, {
+  //     name: "New Room", 
+  //     roomId: roomId,
+  //     numberOfPeople: 0,
+  //     public: true
+  //   })
+
+  // }
 
   const handleJoin = () => {
     navigate(`/room/${code}`);
@@ -60,7 +143,10 @@ const MultiPlayer: React.FC = () => {
 
         {!showJoinInput && (
           <button 
-            onClick={() => setShowJoinInput(true)}
+            onClick={() => {
+              setShowJoinInput(true);
+              getActiveRooms();
+            }}
             className="w-full font-bold text-cyan-300 bg-transparent border-2 border-cyan-400/50 rounded-lg py-4 text-2xl
             transition-all duration-300 transform hover:scale-105
             hover:bg-cyan-300 hover:text-gray-900
@@ -73,6 +159,32 @@ const MultiPlayer: React.FC = () => {
         {/* Conditional Input for Joining a Room */}
         {showJoinInput && (
           <div className="w-full flex flex-col gap-4 p-4 border border-gray-700/50 rounded-lg bg-gray-900/30">
+
+            <h3 className="text-xl text-cyan-300 font-semibold text-center">Join an Active Room</h3>
+            <div className="flex flex-col gap-3 max-h-48 overflow-y-auto pr-2">
+              { activeRooms.map((room) => (
+                <div 
+                  key={room.roomId}
+                  // onClick={() => handleJoinFromList(room.roomId)}
+                  className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60 cursor-pointer'
+                >
+                  <div>
+                    <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.roomId }</p>
+                    <p className='text-sm text-cyan-500' >{ room.numberOfPeople }/8 Players</p>
+                  </div>
+                  <div className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md'>
+                    Join
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-600/50"></div>
+                <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+                <div className="flex-grow border-t border-gray-600/50"></div>
+            </div>
+
             <input 
               type="text" 
               value={code}
