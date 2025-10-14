@@ -1,7 +1,7 @@
 import { rooms, activeTimers } from "../store/rooms.js";
 
 export function gameHandlers(io, socket) {
-  socket.on("startGame", ({ roomId, username }) => {
+  socket.on("startGame", ({ roomId, username, time }) => {
     const room = rooms[roomId];
     if (!room || room.owner !== username) return;
 
@@ -9,7 +9,7 @@ export function gameHandlers(io, socket) {
     if (!allReady) return;
 
     room.status = "in-progress";
-    room.duration = process.env.TIME_DURATION_TEST || 1800;
+    room.duration = time*60;
     room.startTime = Date.now();
     room.endTime = room.startTime + room.duration * 1000;
 
