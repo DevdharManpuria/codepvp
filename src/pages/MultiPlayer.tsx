@@ -58,7 +58,7 @@ const MultiPlayer: React.FC = () => {
 
       for (let key in json) {
 
-        if (json[key].public != true) return;
+        if (json[key].public != true || json[key].status != 'waiting') return;
 
         const teamA = json[key].teamA.filter((item: string | null) => item !== null)
         const teamB = json[key].teamB.filter((item: string | null) => item !== null)
@@ -229,7 +229,7 @@ const MultiPlayer: React.FC = () => {
                 </label>
                 <input
                   type="range"
-                  min="5"
+                  min="2"
                   max="60"
                   step="5"
                   value={roomSettings.time}
@@ -287,16 +287,15 @@ const MultiPlayer: React.FC = () => {
               { activeRooms.map((room) => (
                 <div 
                   key={room.roomId}
-                  // onClick={() => handleJoinFromList(room.roomId)}
-                  className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60 cursor-pointer'
+                  className='flex justify-between items-center bg-gray-800/60 border border-cyan-400/20 rounded-lg p-3 transition-all duration-300 hover:bg-cyan-900/40 hover:border-cyan-400/60'
                 >
                   <div>
                     <p className='text-lg text-cyan-200 font-bold tracking-wider'>{ room.roomId }</p>
                     <p className='text-sm text-cyan-500' >{ room.numberOfPeople }/8 Players</p>
                   </div>
-                  <div className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md'>
+                  <button onClick={() => navigate(`/room/${room.roomId}`)} className='bg-cyan-400/80 text-gray-900 font-bold py-1 px-4 text-sm rounded-md cursor-pointer '>
                     Join
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>

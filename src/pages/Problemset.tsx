@@ -50,7 +50,7 @@ export default function Problemset() {
   const [data, setData] = useState<gameRes | null>(null);
   const [teamAFinished, setTeamAFinished] = useState(false);
   const [teamBFinished, setTeamBFinished] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const { teamId, roomId } = useParams();
 
