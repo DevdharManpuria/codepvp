@@ -33,6 +33,9 @@ const io = new Server(server, {
 const rooms = {};
 const userToRoom = {};
 const activeTimers = new Map();
+// Simple in-memory chat storage. Kept non-persistent and capped to avoid memory blowup.
+const roomChats = {}; // key: roomId -> array of messages
+const teamChats = {}; // key: `${roomId}-team-${teamId}` -> array of messages
 
 io.on("connection", (socket) => {
 
@@ -154,6 +157,46 @@ io.on("connection", (socket) => {
   socket.on("joinProblemRoom", ({roomId, teamId, problemId, username}) => {
     socket.join(`${roomId}-team-${teamId}-problem-${problemId}`);
     console.log(`${username} joined ${problemId} in room ${roomId}`);
+  });
+
+  // Chat: join a chat channel (room-level or team-level)
+  socket.on('joinChat', ({ roomId, teamId, username }) => {
+    if (!roomId) return;
+    // join room-level chat
+    socket.join(`chat-${roomId}`);
+    // if teamId provided, join team-level chat
+    if (teamId) socket.join(`chat-${roomId}-team-${teamId}`);
+
+    // Send recent history
+    const roomHistory = roomChats[roomId] || [];
+    socket.emit('chatHistory', { scope: 'room', roomId, messages: roomHistory });
+
+    if (teamId) {
+      const key = `${roomId}-team-${teamId}`;
+      const teamHistory = teamChats[key] || [];
+      socket.emit('chatHistory', { scope: 'team', roomId, teamId, messages: teamHistory });
+    }
+  });
+
+  // Chat: receive and broadcast message
+  socket.on('chatMessage', ({ roomId, teamId, username, text }) => {
+    if (!roomId || !text) return;
+    const msg = { username, text, ts: Date.now() };
+
+    // store and broadcast room-level message
+    roomChats[roomId] = roomChats[roomId] || [];
+    roomChats[roomId].push(msg);
+    if (roomChats[roomId].length > 500) roomChats[roomId].shift();
+    io.to(`chat-${roomId}`).emit('chatMessage', { scope: 'room', roomId, message: msg });
+
+    // if teamId provided, also store and broadcast team-level message
+    if (teamId) {
+      const key = `${roomId}-team-${teamId}`;
+      teamChats[key] = teamChats[key] || [];
+      teamChats[key].push(msg);
+      if (teamChats[key].length > 500) teamChats[key].shift();
+      io.to(`chat-${roomId}-team-${teamId}`).emit('chatMessage', { scope: 'team', roomId, teamId, message: msg });
+    }
   });
 
   socket.on("editorChange", ({ roomId, teamId, problemId, code, source }) => {
