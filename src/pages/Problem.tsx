@@ -12,6 +12,8 @@ import { markTeamSolved } from './Problemset';
 import { useMatchTimer } from '../hooks/useMatchTimer';
 import type { gameRes } from './GameFinishPage';
 
+import ChatBox from './components/chat-box';
+
 
 // interface ProblemData {
 //     category: string;
@@ -71,6 +73,7 @@ export interface ProblemData {
   title: string;
 }
 
+// Testcase interface for validating test cases
 interface TestCases {
   input: string;
   expected: string;
@@ -81,6 +84,7 @@ interface TestCases {
   errorMessage: string;
 }
 
+// Mapping monaco languageId to Judge0 languageId
 const languageIdMap = {
   python: 71,
   cpp: 12,
@@ -121,17 +125,20 @@ const Problem: React.FC = () => {
       setLanguage(event.target.value)
     }
 
+    // Function to mark points for a solved question for a team
     const markPoints = async (roomId: string, teamId: string, problemId: string, passed: number) => {
       const docRef = doc(db, "RoomSet", roomId!);
       const docSnap = await getDoc(docRef);
       const docData = docSnap.data();
       
-      const teamKey = teamId == "A" ? "teamA" : "teamB";
+      const teamKey = teamId == "A" ? "teamA" : "teamB"; // Get Team
       const problemArray = docData?.allProblems || [];
-      const problem = problemArray.find((p: any) => p.id === problemId);
+      const problem = problemArray.find((p: any) => p.id === problemId); // Get Problem solved
 
+      // If problem already marked as solved then dont consider it
       if (docData?.[teamKey].solvedProblems.includes(problem.title)) return ;
 
+      // Need a better way to award points because this is exploitable
       const currentScore = docData?.[teamKey].score;
       const pointsAwarded = 10 * passed;
 
@@ -140,16 +147,13 @@ const Problem: React.FC = () => {
       });
 
       const players: {
-          pid: {
-            pid: string;
-            ready: boolean;
-            points: number;
-            problemSolved: number;
-          };
+          pid: string;
+          points: number;
+          problemSolved: number;
         }[] = docSnap.data()?.[teamKey].players || [];
 
       const playerIndex = players.findIndex(
-        (p) => p.pid.pid === currentUserName
+        (p) => p.pid === currentUserName
       );
 
       if (playerIndex !== -1) {
@@ -460,18 +464,15 @@ const Problem: React.FC = () => {
         const teamKey = teamId == "A" ? "teamA" : "teamB";
 
         const players: {
-          pid: {
-            pid: string;
-            ready: boolean;
-            points: number;
-            problemSolved: number;
-          };
+          pid: string;
+          points: number;
+          problemSolved: number;
         }[] = docSnap.data()?.[teamKey].players || [];
 
         let pIdx = -1
 
         pIdx = players.findIndex(
-          (p) => p.pid.pid === currentUserName
+          (p) => p.pid === currentUserName
         );
 
         console.log(pIdx)
@@ -486,104 +487,142 @@ const Problem: React.FC = () => {
       fetchData();
     }, [roomId]);
 
-  return (
-    <div className="z-10 flex flex-col h-full w-full max-w-dvw
-      bg-black backdrop-blur-md 
-      border border-cyan-400/20
-      shadow-2xl shadow-cyan-500/10">
+  const [activeTab, setActiveTab] = useState<'problem' | 'chat'>('problem');
 
-        {isLoading && (
-          <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30 z-50">
-          <OrbitProgress 
-            color="#32cd32" 
-            size="large" 
-            text="Testing"
-          />
-    </div>
-        )}
-      
+  return (
+    <div className="h-screen flex flex-col bg-black overflow-hidden">
       {/* Header */}
-      <header className="flex justify-between items-center p-4 border-b border-gray-700/50">
-        <h2 className="text-2xl font-bold text-cyan-300">{ data?.title }</h2>
-        <div className=" text-xl font-mono bg-gray-800/50 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-cyan-400/20">
-                <span className="text-cyan-300">Time Left: {timeLeft}</span>
-            </div>
-        <button 
-                onClick={Run} 
-                className="font-bold text-gray-900 bg-green-400 border-2 border-green-400 rounded-lg px-6 py-2 transition-all duration-300 hover:bg-transparent hover:text-green-300
-                disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isMatchOver}
-            >
-                Submit
-            </button>
-        <button onClick={() => navigate(`/room/${roomId}/problemset/team/${teamId}`)} className="text-purple-300 hover:text-white transition-colors duration-300 text-lg flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Back to Problemset
-        </button>
+      <header className="shrink-0 flex justify-between items-center px-4 py-2 border-b border-gray-700/50 bg-gray-900/50">
+        <h2 className="text-xl font-bold text-cyan-300">{data?.title}</h2>
+        <div className="text-xl font-mono bg-gray-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-cyan-400/20">
+          <span className="text-cyan-300">Time Left: {timeLeft}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={Run}
+            className="font-bold text-gray-900 bg-green-400 border-2 border-green-400 rounded-lg px-4 py-1.5 transition-all duration-300 hover:bg-transparent hover:text-green-300
+            disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isMatchOver}
+          >
+            Submit
+          </button>
+          <button 
+            onClick={() => navigate(`/room/${roomId}/problemset/team/${teamId}`)} 
+            className="text-purple-300 hover:text-white transition-colors duration-300 flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to problemset
+          </button>
+        </div>
       </header>
 
-      <div>
-      {/* Main Content Area */}
-      <div className="flex flex-grow overflow-hidden">
-        {/* Left Side: Problem Description */}
-        <div className="w-1/2 p-6 overflow-y-auto">
-          <h3 className="text-xl font-bold text-white mb-4">Problem Statement</h3>
-          <p className="text-gray-300 mb-6">
-            { data?.statement }
-          </p>
-          <h3 className="text-xl font-bold text-white mb-4">Input Format</h3>
-          <p className="text-gray-300 mb-6">
-            { data?.inputFormat }
-          </p>
-          <h3 className="text-xl font-bold text-white mb-4">Output Format</h3>
-          <p className="text-gray-300 mb-6">
-            { data?.outputFormat }
-          </p>
-            {data?.samples.map((tc, i) => (
-                <div key={i}>
-                <h3 className="text-xl font-bold text-white mb-4">Example {i + 1}</h3>
-                    <div className="bg-gray-900/50 p-4 rounded-lg mb-6">
-                        <code className="text-gray-300">
-                        <span className="text-purple-400">Input:</span> <pre>{ tc.input }</pre> <br/>
-                        <span className="text-purple-400">Output:</span> <pre>{ tc.output }</pre>
-                        </code>
-                    </div>
-                </div>
-            ))}
+      {/* Main Content */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left Panel */}
+        <div className="w-[45%] flex flex-col border-r border-gray-700/50">
+          {/* Tabs */}
+          <div className="shrink-0 flex border-b border-gray-700/50">
+            <button
+              onClick={() => setActiveTab('problem')}
+              className={`px-6 py-2 text-sm font-medium transition-all duration-200 ${
+                activeTab === 'problem'
+                  ? 'text-cyan-400 border-b-2 border-cyan-400'
+                  : 'text-gray-400 hover:text-cyan-300'
+              }`}
+            >
+              Problem Statement
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-6 py-2 text-sm font-medium transition-all duration-200 ${
+                activeTab === 'chat'
+                  ? 'text-cyan-400 border-b-2 border-cyan-400'
+                  : 'text-gray-400 hover:text-cyan-300'
+              }`}
+            >
+              Team Chat
+            </button>
+          </div>
 
-          <h3 className="text-xl font-bold text-white mb-4">Constraints</h3>
-          <ul className="list-disc list-inside text-gray-300 space-y-2">
-            {data?.constraints}
-          </ul>
+          {/* Tab Content */}
+          <div className="flex-1 min-h-0">
+            {activeTab === 'problem' ? (
+              <div className="h-full overflow-y-auto px-6 py-4">
+                <h3 className="text-xl font-bold text-white mb-4">Problem Statement</h3>
+                <p className="text-gray-300 mb-6">
+                  { data?.statement }
+                </p>
+                <h3 className="text-xl font-bold text-white mb-4">Input Format</h3>
+                <p className="text-gray-300 mb-6">
+                  { data?.inputFormat }
+                </p>
+                <h3 className="text-xl font-bold text-white mb-4">Output Format</h3>
+                <p className="text-gray-300 mb-6">
+                  { data?.outputFormat }
+                </p>
+                  {data?.samples.map((tc, i) => (
+                      <div key={i}>
+                      <h3 className="text-xl font-bold text-white mb-4">Example {i + 1}</h3>
+                          <div className="bg-gray-900/50 p-4 rounded-lg mb-6">
+                              <code className="text-gray-300">
+                              <span className="text-purple-400">Input:</span> <pre>{ tc.input }</pre> <br/>
+                              <span className="text-purple-400">Output:</span> <pre>{ tc.output }</pre>
+                              </code>
+                          </div>
+                      </div>
+                  ))}
+
+                <h3 className="text-xl font-bold text-white mb-4">Constraints</h3>
+                <ul className="list-disc list-inside text-gray-300 space-y-2">
+                  {data?.constraints}
+                </ul>
+              </div>
+            ) : (
+              <div className="h-full">
+                <ChatBox onClose={() => setActiveTab('problem')} />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right Side: Code Editor and Actions */}
-        <div className="w-1/2 flex flex-col justify-between border-l border-gray-700/50">
-          {/* This is now just a placeholder for the editor */}
-          <div className="h-4/6 bg-gray-900/50 p-2">
-          <select className='bg-black hover:brightness-150 transition-normal duration-1000 text-purple-300 p-1 rounded-sm mb-1'  value={language} onChange={handleLangChange} >
-            <option value="python">Python</option>
-            <option value="cpp">C++</option>
-            <option value="java">Java</option>
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="go">Golang</option>
-            <option value="rust">Rust</option>
-          </select>
-      <Editor 
-        theme="vs-dark" 
-        language={language} 
-        value={code} 
-        options={{
-          minimap: { enabled: false },
-          fontSize: 16,
-          wordWrap: 'on',
-        }}
-        onMount={handleEditorDidMount}
-        onChange={handleEditorChange}
-      />
+        {/* Right Panel - Editor and Results */}
+        <div className="flex-1 flex flex-col">
+          {/* Language Select and Editor */}
+          <div className="flex-1 min-h-0">
+            <select 
+              className="bg-gray-800 text-gray-300 p-1.5 rounded border border-gray-700 m-2" 
+              value={language} 
+              onChange={handleLangChange}
+            >
+              <option value="python">Python</option>
+              <option value="cpp">C++</option>
+              <option value="java">Java</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="go">Golang</option>
+              <option value="rust">Rust</option>
+            </select>
+            <div className="h-[calc(100%-48px)]">
+              <Editor 
+                theme="vs-dark" 
+                language={language} 
+                value={code} 
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 16,
+                  wordWrap: 'on',
+                }}
+                onMount={handleEditorDidMount}
+                onChange={handleEditorChange}
+              />
+            </div>
           </div>
-          <div ref={testResultsRef} className="flex justify-start px-5 items-center p-0 bg-gray-900/50 border-t border-gray-700/50 gap-4">
+
+          {/* Test Results */}
+          <div ref={testResultsRef} className="h-[240px] flex border-t border-gray-700/50">
             <div className="flex h-full gap-3 flex-col w-1/3 p-3 bg-gray-900/70 border-r border-gray-700/50 rounded-l-lg">
               {testResults.map((res, idx) => (
                 <button
@@ -646,9 +685,19 @@ const Problem: React.FC = () => {
             </div>
 
           </div>
-          </div>
         </div>
       </div>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30 z-50">
+          <OrbitProgress 
+            color="#32cd32" 
+            size="large" 
+            text="Testing"
+          />
+        </div>
+      )}
     </div>
   );
 };
