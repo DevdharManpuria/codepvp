@@ -1,16 +1,20 @@
+import { rooms } from '../store/rooms.js';
+
 export function chatHandlers(io, socket) {
-  // in-memory stores (or import from central store)
-  const roomChats = {};  // in production move to redis/db
-  const teamChats = {};
 
   socket.on('joinChat', ({ roomId, teamId, username }) => {
     if (!roomId) return;
     socket.join(`chat-${roomId}`);
     if (teamId) socket.join(`chat-${roomId}-team-${teamId}`);
 
-    socket.emit('chatHistory', { scope: 'room', roomId, messages: roomChats[roomId] || [] });
+    const room = rooms[roomId] || {};
+    // ensure arrays exist on the room object
+    const roomMessages = room.chats || [];
+    socket.emit('chatHistory', { scope: 'room', roomId, messages: roomMessages });
+
     if (teamId) {
-      socket.emit('chatHistory', { scope: 'team', roomId, teamId, messages: teamChats[`${roomId}-team-${teamId}`] || [] });
+      const teamMessages = (room.teamChats && room.teamChats[teamId]) || [];
+      socket.emit('chatHistory', { scope: 'team', roomId, teamId, messages: teamMessages });
     }
   });
 
@@ -18,16 +22,22 @@ export function chatHandlers(io, socket) {
     if (!roomId || !text) return;
     const msg = { username, text, ts: Date.now() };
 
-    roomChats[roomId] = roomChats[roomId] || [];
-    roomChats[roomId].push(msg);
-    if (roomChats[roomId].length > 500) roomChats[roomId].shift();
+    // ensure room exists in shared store
+    rooms[roomId] = rooms[roomId] || {};
+    const room = rooms[roomId];
+
+    // store room-level chats
+    room.chats = room.chats || [];
+    room.chats.push(msg);
+    if (room.chats.length > 500) room.chats.shift();
     io.to(`chat-${roomId}`).emit('chatMessage', { scope: 'room', roomId, message: msg });
 
+    // store team-level chats under room.teamChats[teamId]
     if (teamId) {
-      const key = `${roomId}-team-${teamId}`;
-      teamChats[key] = teamChats[key] || [];
-      teamChats[key].push(msg);
-      if (teamChats[key].length > 500) teamChats[key].shift();
+      room.teamChats = room.teamChats || {};
+      room.teamChats[teamId] = room.teamChats[teamId] || [];
+      room.teamChats[teamId].push(msg);
+      if (room.teamChats[teamId].length > 500) room.teamChats[teamId].shift();
       io.to(`chat-${roomId}-team-${teamId}`).emit('chatMessage', { scope: 'team', roomId, teamId, message: msg });
     }
   });
