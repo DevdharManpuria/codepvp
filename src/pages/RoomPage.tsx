@@ -7,6 +7,7 @@ import { getDocs, getDoc, collection, query, where, setDoc, doc } from "firebase
 import { db } from '../../firebaseConfig';
 import ChatBox from './components/chat-box';
 import type { RoomSettings } from './MultiPlayer';
+import LoadingScreen from './components/LoadingScreen';
 
 type PlayerSlotProps = {
     player: { pid: string, ready: boolean } | null;
@@ -61,6 +62,8 @@ const RoomPage: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [roomSettings, setRoomSettings] = useState<RoomSettings | null>(null);
 
+  const [isLoading,  setIsLoading] = useState(true);
+
   //getting firebase user
   const { user, loading } = useUser()
   
@@ -80,6 +83,7 @@ const RoomPage: React.FC = () => {
       const roomDoc = await getDoc(doc(db, "rooms", roomId!));
       if (roomDoc.exists()) {
         setRoomSettings(roomDoc.data() as RoomSettings);
+        setIsLoading(false);
       }
     }
     fetchSettings();
@@ -179,6 +183,10 @@ const RoomPage: React.FC = () => {
     });
 
     socket.emit("startGame", { roomId, username: currentUserName, time: roomSettings.time })
+  }
+
+  if (isLoading) {
+    return <LoadingScreen message='Setting Up' />;
   }
 
   return (

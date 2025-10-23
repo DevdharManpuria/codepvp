@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound"
 import Dashboard from "./pages/Dahboard"
 import './App.css'
 import { UserProvider } from "./hooks/useUser"
+// import LoadingScreen from "./pages/components/LoadingScreen"
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
           <Route path="room/:roomId/problems/:problemId/team/:teamId" element={<Problem />} />
           <Route path="room/:roomId/results" element={<GameFinishPage />} />
           <Route path="dashboard" element={ <Dashboard /> } />
+          {/* <Route path="loading" element={<LoadingScreen />} /> */}
         </Route>
       </Routes>
     </BrowserRouter>
