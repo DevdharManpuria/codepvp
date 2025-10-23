@@ -52,7 +52,7 @@ const PlayerSlot: React.FC<PlayerSlotProps> = ({ player, onJoin, onToggleReady, 
 };
 
 const RoomPage: React.FC = () => {
-  const SLOT_COUNT = 4
+  const SLOT_COUNT = 4 // In the future need to integrate with room creation options
   const [teamA, setTeamA] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
   const [teamB, setTeamB] = useState<( { pid: string, ready: boolean } | null )[]>(Array(SLOT_COUNT).fill(null));
   const [owner, setOwner] = useState<string | null>(null);
@@ -78,12 +78,15 @@ const RoomPage: React.FC = () => {
     socket.emit("toggleReady", { roomId, team, slotIndex, username: currentUserName });
   };
 
+  // Get Room Settings from firebase
   useEffect(() => {
     const fetchSettings = async () => {
       const roomDoc = await getDoc(doc(db, "rooms", roomId!));
       if (roomDoc.exists()) {
         setRoomSettings(roomDoc.data() as RoomSettings);
         setIsLoading(false);
+      } else {
+        navigate("/404"); // if room does not exist
       }
     }
     fetchSettings();
@@ -101,6 +104,7 @@ const RoomPage: React.FC = () => {
       setIsPublic(room.public);
     });
 
+    // Finds team associated with the current user and navigates to problemset of that team
     socket.on("navigateToProblemset", ({roomId, room}) => {
       console.log("🔥 navigateToProblemset event received:", roomId, room);
       const team = room.teamA.some((p: { pid: string; ready: boolean } | null) => p && p.pid === currentUserName) ? "A" : "B";
@@ -134,14 +138,13 @@ const RoomPage: React.FC = () => {
   };
 
   const handleStart = async () => {
-    // await populateFirebase();
 
-    if (!roomSettings) return;
+    if (!roomSettings) return; // Cannot start without room settings
 
     const q = query(
       collection(db, "ProblemsWithHTC"),
       where("difficulty", "==", roomSettings.difficulty),
-    );
+    ); // Get questions with difficulty
 
     const querySnapshot = await getDocs(q);
     const allProblems = querySnapshot.docs.map((doc) => ({
@@ -149,6 +152,7 @@ const RoomPage: React.FC = () => {
       ...doc.data(),
     }));
 
+    // Randomize list of problems and select first n questions
     const shuffledProblems = allProblems.sort(() => Math.random() - 0.5);
     const selectedProblems = shuffledProblems.slice(0, roomSettings.questions);
 
