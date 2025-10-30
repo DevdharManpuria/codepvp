@@ -6,7 +6,7 @@ import 'dotenv/config';
 import cors from "cors";
 import { rooms } from "./store/rooms.js";
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 const app = express();
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
