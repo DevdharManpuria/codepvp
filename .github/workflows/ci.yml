@@ -19,7 +19,7 @@ jobs:
 
       - name: Build and tag Docker images
         run: |
-          docker-compose build \
+          docker compose build \
             --build-arg VITE_RAPID_API_KEY: ${{ secrets.VITE_RAPID_API_KEY }}
             --build-arg VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
             --build-arg VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
